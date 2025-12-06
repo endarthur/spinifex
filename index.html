@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spinifex</title>
+
+  <!-- OpenLayers -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@latest/ol.css">
+  <script src="https://cdn.jsdelivr.net/npm/ol@latest/dist/ol.js"></script>
+
+  <!-- xterm.js -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+
+  <!-- proj4 for projections -->
+  <script src="https://cdn.jsdelivr.net/npm/proj4@2.9.0/dist/proj4.js"></script>
+
+  <!-- turf for spatial ops -->
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@7/turf.min.js"></script>
+
+  <!-- chroma.js for color scales -->
+  <script src="https://cdn.jsdelivr.net/npm/chroma-js@2.4.2/chroma.min.js"></script>
+
+  <!-- WinBox for windowed panels -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/winbox@0.2.82/dist/css/winbox.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/winbox@0.2.82/dist/js/winbox.min.js"></script>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="styles/spinifex.css">
+</head>
+<body>
+  <header>
+    <div class="logo">
+      SPINIFEX
+      <span class="logo-sub">ultrabasic web gis</span>
+    </div>
+    <div class="header-right">
+      <span class="workspace-name" id="workspace-name"></span>
+      <button class="header-btn" onclick="sp.windows.toggleLayers()" title="Toggle Layers panel">Layers</button>
+      <button class="header-btn" onclick="sp.windows.toggleLegend()" title="Toggle Legend">Legend</button>
+      <button class="header-btn" onclick="sp.windows.toggleTerminal()" title="Toggle Terminal">Terminal</button>
+      <button class="header-btn" onclick="sp.windows.openSettings()" title="Settings">Settings</button>
+      <button class="header-btn" onclick="runInTerminal('help()')" title="Help">?</button>
+    </div>
+  </header>
+
+  <!-- Main view tabs -->
+  <div id="view-tabs">
+    <div class="view-tab active" data-view="map2d">Map</div>
+    <div class="view-tab" data-view="map3d">3D</div>
+  </div>
+
+  <!-- View content area -->
+  <main id="view-content">
+    <div id="view-map2d" class="view-panel active">
+      <div id="map"></div>
+    </div>
+    <div id="view-map3d" class="view-panel">
+      <div class="view-placeholder">3D view coming soon</div>
+    </div>
+  </main>
+
+  <div class="status-bar">
+    <div class="status-item">
+      <span class="status-label">CRS:</span>
+      <span class="status-value" id="status-crs">EPSG:4326</span>
+    </div>
+    <div class="status-item">
+      <span class="status-label">Cursor:</span>
+      <span class="status-value" id="status-coords">--.----, --.----</span>
+    </div>
+    <div class="status-item">
+      <span class="status-label">Layers:</span>
+      <span class="status-value" id="status-layers">0</span>
+    </div>
+  </div>
+
+  <!-- Popup overlay -->
+  <div id="popup" class="ol-popup">
+    <span class="ol-popup-closer" onclick="closePopup()">&times;</span>
+    <div id="popup-content"></div>
+  </div>
+
+  <!-- Main application -->
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
