@@ -1,12 +1,14 @@
-// Spinifex - Shapefile Loader
+// Spinifex - Shapefile Loader & Exporter
 // Parse Shapefile (as ZIP) into GeoJSON
-// Requires shpjs library
+// Export GeoJSON to Shapefile (via shpwrite)
+// Requires shpjs (read) and shpwrite (write) libraries
 
 import { loadGeoJSON } from './geojson.js';
 import { termPrint } from '../ui/terminal.js';
 
-// shpjs library reference
-let shp = null;
+// Library references
+let shp = null;      // shpjs for reading
+let shpwrite = null; // shpwrite for writing
 
 /**
  * Ensure shpjs is loaded
@@ -116,4 +118,127 @@ export function isShpFile(buffer) {
   // Shapefile magic number: 0x0000270a (big-endian)
   const arr = new Uint8Array(buffer.slice(0, 4));
   return arr[0] === 0x00 && arr[1] === 0x00 && arr[2] === 0x27 && arr[3] === 0x0a;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shapefile Export (via shpwrite)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Ensure shpwrite library is loaded
+ */
+async function ensureShpwrite() {
+  if (shpwrite) return shpwrite;
+
+  if (window.shpwrite) {
+    shpwrite = window.shpwrite;
+    return shpwrite;
+  }
+
+  // Dynamically load shpwrite
+  termPrint('Loading Shapefile export library...', 'dim');
+
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/@mapbox/shp-write@0.4.3/shpwrite.js';
+    script.onload = () => {
+      shpwrite = window.shpwrite;
+      termPrint('Shapefile export library loaded', 'dim');
+      resolve(shpwrite);
+    };
+    script.onerror = () => {
+      reject(new Error('Failed to load shpwrite library'));
+    };
+    document.head.appendChild(script);
+  });
+}
+
+/**
+ * Export GeoJSON to Shapefile (ZIP) using pure JS
+ * @param {Object} geojson - GeoJSON FeatureCollection
+ * @param {string} filename - Output filename (without extension)
+ * @param {Object} options - Export options
+ * @returns {Promise<Blob>} ZIP blob containing shapefile
+ */
+export async function exportShapefile(geojson, filename = 'export', options = {}) {
+  try {
+    const shpLib = await ensureShpwrite();
+
+    termPrint('Generating Shapefile...', 'dim');
+
+    // shpwrite options
+    const shpOptions = {
+      folder: filename,
+      outputType: 'blob',  // Return Blob instead of ArrayBuffer
+      compression: 'STORE',  // DEFLATE can be buggy in browser
+      types: {
+        point: 'points',
+        polygon: 'polygons',
+        line: 'lines'
+      }
+    };
+
+    // Generate shapefile as ZIP blob
+    const zipBlob = await shpLib.zip(geojson, shpOptions);
+
+    termPrint('Shapefile generated', 'green');
+    return zipBlob;
+  } catch (e) {
+    termPrint(`Shapefile export error: ${e.message}`, 'red');
+    throw e;
+  }
+}
+
+/**
+ * Download layer as Shapefile using pure JS (shpwrite)
+ * Falls back to GDAL if shpwrite fails
+ * @param {Object} layer - Vector layer to export
+ * @param {string} filename - Output filename
+ * @param {Object} options - Export options
+ */
+export async function downloadShapefile(layer, filename, options = {}) {
+  const name = filename || layer.name || 'export';
+  const geojson = layer.geojson || layer._geojson;
+
+  if (!geojson || !geojson.features) {
+    termPrint('No vector data to export', 'red');
+    return null;
+  }
+
+  try {
+    // Try pure JS export first (faster, lighter)
+    const zipBlob = await exportShapefile(geojson, name, options);
+
+    // Download the blob
+    const url = URL.createObjectURL(zipBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${name}.shp.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    termPrint(`Downloaded: ${name}.shp.zip`, 'green');
+    return `${name}.shp.zip`;
+  } catch (e) {
+    // Fall back to GDAL if shpwrite fails
+    termPrint('Pure JS export failed, trying GDAL...', 'yellow');
+
+    try {
+      // Dynamic import to avoid circular dependency
+      const { downloadVector } = await import('../raster/gdal.js');
+      return await downloadVector(layer, 'shapefile', filename);
+    } catch (gdalError) {
+      termPrint(`GDAL fallback also failed: ${gdalError.message}`, 'red');
+      return null;
+    }
+  }
+}
+
+/**
+ * Check if shpwrite is available (without loading it)
+ */
+export function isShpwriteAvailable() {
+  return shpwrite !== null || window.shpwrite !== undefined;
 }

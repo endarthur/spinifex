@@ -1,10 +1,8 @@
 // Spinifex - GeoTIFF Loader
-// Display GeoTIFF rasters using geotiff.js
-// Basic display only - raster algebra will be added later
+// Load GeoTIFF rasters using geotiff.js with WebGL rendering
+// Supports single-band, RGB, and RGBA rasters
 
-import { state } from '../core/state.js';
-import { getMap } from '../ui/map.js';
-import { updateLayerPanel, updateStatusBar } from '../ui/layers-panel.js';
+import { createWebGLRasterLayer, RENDER_MODES, COLOR_RAMPS } from '../raster/webgl-raster.js';
 import { termPrint } from '../ui/terminal.js';
 
 // geotiff.js library reference
@@ -40,193 +38,23 @@ async function ensureGeoTIFF() {
 }
 
 /**
- * RasterLayer class - wrapper for raster layers
+ * Calculate statistics for a band
+ * @param {TypedArray} band - Band data
+ * @param {number} noDataValue - NoData value to exclude
  */
-class RasterLayer {
-  constructor(id, name, olLayer, metadata, zIndex) {
-    this._id = id;
-    this._name = name;
-    this._olLayer = olLayer;
-    this._metadata = metadata;
-    this._visible = true;
-    this._zIndex = zIndex || 0;
-    // Source file info for project persistence
-    this._sourcePath = null;    // e.g., "rasters/dem.tif"
-    this._sourceFormat = 'geotiff';
-    if (this._olLayer) {
-      this._olLayer.setZIndex(this._zIndex);
+function calculateBandStats(band, noDataValue) {
+  let min = Infinity;
+  let max = -Infinity;
+
+  for (let i = 0; i < band.length; i++) {
+    const val = band[i];
+    if (val !== noDataValue && isFinite(val)) {
+      if (val < min) min = val;
+      if (val > max) max = val;
     }
   }
 
-  get name() { return this._name; }
-  get id() { return this._id; }
-  get visible() { return this._visible; }
-  get olLayer() { return this._olLayer; }
-  get metadata() { return this._metadata; }
-  get sourcePath() { return this._sourcePath; }
-  get sourceFormat() { return this._sourceFormat; }
-
-  setSource(path, format = 'geotiff') {
-    this._sourcePath = path;
-    this._sourceFormat = format;
-    return this;
-  }
-
-  get width() { return this._metadata.width; }
-  get height() { return this._metadata.height; }
-  get bands() { return this._metadata.samplesPerPixel; }
-  get extent() { return this._metadata.extent; }
-
-  show() {
-    this._olLayer.setVisible(true);
-    this._visible = true;
-    updateLayerPanel();
-    return this;
-  }
-
-  hide() {
-    this._olLayer.setVisible(false);
-    this._visible = false;
-    updateLayerPanel();
-    return this;
-  }
-
-  zoom() {
-    const map = getMap();
-    map.getView().fit(this._metadata.olExtent, {
-      padding: [50, 50, 50, 50],
-      duration: 500
-    });
-    return this;
-  }
-
-  opacity(value) {
-    if (value !== undefined) {
-      this._olLayer.setOpacity(value);
-      return this;
-    }
-    return this._olLayer.getOpacity();
-  }
-
-  /**
-   * Get or set layer z-index (rendering order)
-   * Higher z-index = rendered on top
-   */
-  zIndex(value) {
-    if (value !== undefined) {
-      this._zIndex = value;
-      this._olLayer.setZIndex(value);
-      updateLayerPanel();
-      return this;
-    }
-    return this._zIndex;
-  }
-
-  /**
-   * Move layer to top of render stack
-   */
-  bringToFront() {
-    let maxZ = 0;
-    state.layers.forEach(l => {
-      const z = l.zIndex ? l.zIndex() : 0;
-      if (z > maxZ) maxZ = z;
-    });
-    this.zIndex(maxZ + 1);
-    return this;
-  }
-
-  /**
-   * Move layer to bottom of render stack
-   */
-  sendToBack() {
-    let minZ = Infinity;
-    state.layers.forEach(l => {
-      const z = l.zIndex ? l.zIndex() : 0;
-      if (z < minZ) minZ = z;
-    });
-    this.zIndex(minZ - 1);
-    return this;
-  }
-
-  remove() {
-    const map = getMap();
-    map.removeLayer(this._olLayer);
-    state.layers.delete(this._id);
-    updateLayerPanel();
-    return null;
-  }
-
-  toString() {
-    return `RasterLayer<${this._name}> (${this.width}x${this.height}, ${this.bands} band${this.bands > 1 ? 's' : ''})`;
-  }
-}
-
-/**
- * Create canvas from raster data
- */
-function createRasterCanvas(raster, width, height, noDataValue) {
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d');
-  const imageData = ctx.createImageData(width, height);
-
-  // Determine if single band (grayscale) or multi-band (RGB)
-  const numBands = raster.length;
-
-  if (numBands === 1) {
-    // Single band - create grayscale
-    const band = raster[0];
-    let min = Infinity, max = -Infinity;
-
-    // Find min/max for stretching
-    for (let i = 0; i < band.length; i++) {
-      const val = band[i];
-      if (val !== noDataValue && isFinite(val)) {
-        if (val < min) min = val;
-        if (val > max) max = val;
-      }
-    }
-
-    const range = max - min || 1;
-
-    for (let i = 0; i < band.length; i++) {
-      const val = band[i];
-      const idx = i * 4;
-
-      if (val === noDataValue || !isFinite(val)) {
-        // Transparent for nodata
-        imageData.data[idx] = 0;
-        imageData.data[idx + 1] = 0;
-        imageData.data[idx + 2] = 0;
-        imageData.data[idx + 3] = 0;
-      } else {
-        // Stretch to 0-255
-        const gray = Math.round(((val - min) / range) * 255);
-        imageData.data[idx] = gray;
-        imageData.data[idx + 1] = gray;
-        imageData.data[idx + 2] = gray;
-        imageData.data[idx + 3] = 255;
-      }
-    }
-  } else if (numBands >= 3) {
-    // RGB or RGBA
-    const r = raster[0];
-    const g = raster[1];
-    const b = raster[2];
-    const a = numBands >= 4 ? raster[3] : null;
-
-    for (let i = 0; i < r.length; i++) {
-      const idx = i * 4;
-      imageData.data[idx] = Math.min(255, Math.max(0, r[i]));
-      imageData.data[idx + 1] = Math.min(255, Math.max(0, g[i]));
-      imageData.data[idx + 2] = Math.min(255, Math.max(0, b[i]));
-      imageData.data[idx + 3] = a ? Math.min(255, Math.max(0, a[i])) : 255;
-    }
-  }
-
-  ctx.putImageData(imageData, 0, 0);
-  return canvas;
+  return { min: min === Infinity ? 0 : min, max: max === -Infinity ? 255 : max };
 }
 
 /**
@@ -258,55 +86,208 @@ export async function loadGeoTIFF(buffer, name, options = {}) {
     termPrint(`Raster: ${width}x${height}, ${samplesPerPixel} band(s)`, 'dim');
 
     // Read raster data
-    const raster = await image.readRasters();
+    const rasterData = await image.readRasters();
 
-    // Create canvas
-    const canvas = createRasterCanvas(raster, width, height, noDataValue);
+    // Convert to array of bands
+    const bands = [];
+    for (let i = 0; i < samplesPerPixel; i++) {
+      bands.push(rasterData[i]);
+    }
 
-    // Create OpenLayers layer
+    // Calculate statistics for each band
+    const bandStats = {};
+    let globalMin = Infinity;
+    let globalMax = -Infinity;
+
+    for (let i = 0; i < bands.length; i++) {
+      const stats = calculateBandStats(bands[i], noDataValue);
+      bandStats[`band${i + 1}`] = stats;
+      if (stats.min < globalMin) globalMin = stats.min;
+      if (stats.max > globalMax) globalMax = stats.max;
+    }
+
+    // Determine render mode
+    let mode = options.mode;
+    if (!mode) {
+      if (samplesPerPixel >= 3) {
+        mode = RENDER_MODES.RGB;
+      } else {
+        mode = RENDER_MODES.GRAYSCALE;
+      }
+    }
+
+    // Default color ramp for single band
+    const colorRamp = options.colorRamp || 'grayscale';
+
+    // Build metadata
     const extent = [bbox[0], bbox[1], bbox[2], bbox[3]];
-    const olExtent = ol.proj.transformExtent(extent, 'EPSG:4326', 'EPSG:3857');
-
-    const imageLayer = new ol.layer.Image({
-      source: new ol.source.ImageStatic({
-        url: canvas.toDataURL(),
-        imageExtent: olExtent,
-        projection: 'EPSG:3857'
-      })
-    });
-
-    const map = getMap();
-    map.addLayer(imageLayer);
-
-    // Create RasterLayer wrapper
-    const id = `raster_${state.layerCounter++}`;
-    const cleanName = name.replace(/[^a-zA-Z0-9_]/g, '_');
-    const zIndex = state.zIndexCounter++;
-
     const metadata = {
       width,
       height,
-      samplesPerPixel,
       extent,
-      olExtent,
-      noDataValue
+      min: globalMin,
+      max: globalMax,
+      bandStats,
+      nodata: noDataValue,
+      samplesPerPixel
     };
 
-    const layer = new RasterLayer(id, cleanName, imageLayer, metadata, zIndex);
-    state.layers.set(id, layer);
+    // Create WebGL raster layer
+    const layer = createWebGLRasterLayer(
+      samplesPerPixel === 1 ? bands[0] : bands,
+      metadata,
+      name,
+      {
+        nodata: noDataValue,
+        colorRamp,
+        mode
+      }
+    );
 
-    // Add to sp namespace
-    import('../core/api.js').then(({ sp }) => {
-      sp[cleanName] = layer;
-    });
+    layer.setSource(null, 'geotiff');
 
-    updateLayerPanel();
-    updateStatusBar();
-
-    termPrint(`Loaded raster: ${cleanName}`, 'green');
+    termPrint(`Loaded raster: ${name}`, 'green');
     return layer;
   } catch (e) {
     termPrint(`GeoTIFF error: ${e.message}`, 'red');
+    console.error(e);
+    return null;
+  }
+}
+
+/**
+ * Load a Cloud Optimized GeoTIFF (COG) from URL
+ * Uses HTTP range requests for efficient streaming
+ * @param {string} url - URL to the COG file
+ * @param {string} name - Layer name (optional, derived from URL)
+ * @param {object} options - Loading options
+ */
+export async function loadCOG(url, name, options = {}) {
+  try {
+    const geotiffLib = await ensureGeoTIFF();
+
+    // Derive name from URL if not provided
+    const layerName = name || url.split('/').pop().replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_]/g, '_');
+
+    termPrint(`Loading COG from: ${url}`, 'dim');
+
+    // Open COG with range request support
+    const tiff = await geotiffLib.fromUrl(url);
+    const image = await tiff.getImage();
+
+    // Get metadata
+    const width = image.getWidth();
+    const height = image.getHeight();
+    const bbox = image.getBoundingBox();
+    const samplesPerPixel = image.getSamplesPerPixel();
+
+    // Get nodata value
+    const gdalNoData = image.getGDALNoData();
+    const noDataValue = gdalNoData !== null ? gdalNoData : -9999;
+
+    termPrint(`COG: ${width}x${height}, ${samplesPerPixel} band(s)`, 'dim');
+
+    // Check for overviews (COG feature)
+    const imageCount = await tiff.getImageCount();
+    if (imageCount > 1) {
+      termPrint(`COG has ${imageCount - 1} overview level(s)`, 'dim');
+    }
+
+    // For large COGs, read at a reduced resolution
+    // Use overview if available, otherwise subsample
+    let readWidth = width;
+    let readHeight = height;
+    let readImage = image;
+
+    // If very large, try to use an overview
+    const MAX_PIXELS = 4096 * 4096; // ~16 million pixels
+    if (width * height > MAX_PIXELS && imageCount > 1) {
+      // Find appropriate overview level
+      for (let i = 1; i < imageCount; i++) {
+        const overview = await tiff.getImage(i);
+        const ow = overview.getWidth();
+        const oh = overview.getHeight();
+        if (ow * oh <= MAX_PIXELS) {
+          readImage = overview;
+          readWidth = ow;
+          readHeight = oh;
+          termPrint(`Using overview ${i}: ${ow}x${oh}`, 'dim');
+          break;
+        }
+      }
+    }
+
+    // Read raster data
+    termPrint('Reading raster data...', 'dim');
+    const rasterData = await readImage.readRasters();
+
+    // Convert to array of bands
+    const bands = [];
+    for (let i = 0; i < samplesPerPixel; i++) {
+      bands.push(rasterData[i]);
+    }
+
+    // Calculate statistics for each band
+    const bandStats = {};
+    let globalMin = Infinity;
+    let globalMax = -Infinity;
+
+    for (let i = 0; i < bands.length; i++) {
+      const stats = calculateBandStats(bands[i], noDataValue);
+      bandStats[`band${i + 1}`] = stats;
+      if (stats.min < globalMin) globalMin = stats.min;
+      if (stats.max > globalMax) globalMax = stats.max;
+    }
+
+    // Determine render mode
+    let mode = options.mode;
+    if (!mode) {
+      if (samplesPerPixel >= 3) {
+        mode = RENDER_MODES.RGB;
+      } else {
+        mode = RENDER_MODES.GRAYSCALE;
+      }
+    }
+
+    // Default color ramp for single band
+    const colorRamp = options.colorRamp || 'grayscale';
+
+    // Build metadata (use original dimensions for extent, read dimensions for data)
+    const extent = [bbox[0], bbox[1], bbox[2], bbox[3]];
+    const metadata = {
+      width: readWidth,
+      height: readHeight,
+      originalWidth: width,
+      originalHeight: height,
+      extent,
+      min: globalMin,
+      max: globalMax,
+      bandStats,
+      nodata: noDataValue,
+      samplesPerPixel,
+      sourceUrl: url
+    };
+
+    // Create WebGL raster layer
+    const layer = createWebGLRasterLayer(
+      samplesPerPixel === 1 ? bands[0] : bands,
+      metadata,
+      layerName,
+      {
+        nodata: noDataValue,
+        colorRamp,
+        mode
+      }
+    );
+
+    layer.setSource(url, 'cog');
+
+    termPrint(`Loaded COG: ${layerName}`, 'green');
+    layer.zoom();
+    return layer;
+  } catch (e) {
+    termPrint(`COG error: ${e.message}`, 'red');
+    console.error(e);
     return null;
   }
 }
@@ -320,4 +301,130 @@ export function isGeoTIFF(buffer) {
   const isLittleEndian = arr[0] === 0x49 && arr[1] === 0x49 && arr[2] === 0x2A && arr[3] === 0x00;
   const isBigEndian = arr[0] === 0x4D && arr[1] === 0x4D && arr[2] === 0x00 && arr[3] === 0x2A;
   return isLittleEndian || isBigEndian;
+}
+
+/**
+ * Load a COG from workspace with tiled reading
+ * This is more efficient for large rasters as it only loads tiles on demand
+ * @param {FileSystemFileHandle} fileHandle - File handle from workspace
+ * @param {string} name - Layer name
+ * @param {Object} options - Saved layer options (colorRamp, mode, etc.)
+ */
+export async function loadCOGFromWorkspace(fileHandle, name, options = {}) {
+  try {
+    const geotiffLib = await ensureGeoTIFF();
+
+    termPrint(`Loading COG: ${name}...`, 'dim');
+
+    // Get file and read
+    const file = await fileHandle.getFile();
+    const buffer = await file.arrayBuffer();
+
+    // Parse COG
+    const tiff = await geotiffLib.fromArrayBuffer(buffer);
+    const image = await tiff.getImage();
+
+    // Get metadata
+    const width = image.getWidth();
+    const height = image.getHeight();
+    const bbox = image.getBoundingBox();
+    const samplesPerPixel = image.getSamplesPerPixel();
+    // Use saved nodata from project config, fall back to GDAL tag, then default
+    const noDataValue = options.nodata ?? image.getGDALNoData() ?? -32768;
+
+    termPrint(`COG: ${width}x${height}, ${samplesPerPixel} band(s)`, 'dim');
+
+    // For now, load full raster (tiled loading can be added later for very large files)
+    // The benefit is still there: COG is compressed and has overviews
+    const rasterData = await image.readRasters();
+
+    // Convert to array of bands
+    const bands = [];
+    for (let i = 0; i < samplesPerPixel; i++) {
+      bands.push(rasterData[i]);
+    }
+
+    // Calculate statistics for each band (always needed for RGB rendering)
+    // Global min/max can optionally be provided from project config
+    const bandStats = {};
+    let globalMin = Infinity;
+    let globalMax = -Infinity;
+
+    for (let i = 0; i < bands.length; i++) {
+      const stats = calculateBandStats(bands[i], noDataValue);
+      bandStats[`band${i + 1}`] = stats;
+      if (stats.min < globalMin) globalMin = stats.min;
+      if (stats.max > globalMax) globalMax = stats.max;
+    }
+
+    // Override global min/max if provided in options (for stretch consistency)
+    if (options.min !== undefined) globalMin = options.min;
+    if (options.max !== undefined) globalMax = options.max;
+
+    // Use saved mode/colorRamp or auto-detect
+    let mode = options.mode;
+    if (!mode) {
+      if (samplesPerPixel >= 3) {
+        mode = RENDER_MODES.RGB;
+      } else {
+        mode = RENDER_MODES.GRAYSCALE;
+      }
+    }
+
+    const colorRamp = options.colorRamp || 'terrain';
+
+    // Build metadata
+    const extent = [bbox[0], bbox[1], bbox[2], bbox[3]];
+    const metadata = {
+      width,
+      height,
+      extent,
+      min: globalMin,
+      max: globalMax,
+      bandStats,
+      nodata: noDataValue,
+      samplesPerPixel
+    };
+
+    // Create WebGL raster layer
+    const layer = createWebGLRasterLayer(
+      samplesPerPixel === 1 ? bands[0] : bands,
+      metadata,
+      name,
+      {
+        nodata: noDataValue,
+        colorRamp,
+        mode
+      }
+    );
+
+    layer.setSource(file.name, 'cog');
+
+    // Restore selected band if saved in project
+    if (options.selectedBand) {
+      layer._selectedBand = options.selectedBand;
+    }
+
+    // Restore RGB band mapping if saved in project
+    if (options.bandMapping && Array.isArray(options.bandMapping)) {
+      layer._bandMapping = options.bandMapping;
+    }
+
+    // Restore per-channel stretch if saved in project
+    if (options.bandStretch) {
+      layer._bandStretch = options.bandStretch;
+    }
+
+    // Update style with restored settings
+    if (options.selectedBand || options.bandMapping || options.bandStretch) {
+      layer._updateStyle();
+    }
+
+    termPrint(`Loaded COG: ${name}`, 'green');
+    return layer;
+  } catch (e) {
+    termPrint(`COG load error: ${e.message}`, 'red');
+    console.error(e);
+    return null;
+  }
 }

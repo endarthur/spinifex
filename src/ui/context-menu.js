@@ -4,7 +4,8 @@
 import { state } from '../core/state.js';
 import { termPrint } from './terminal.js';
 import { colorScales, getUniqueValues, getFieldStats } from '../core/styling.js';
-import { openLayerProperties } from './windows.js';
+import { openLayerProperties, openAttributeTable } from './windows.js';
+import { openStylePanel, openRasterStylePanel } from './style-panel.js';
 
 let currentContextMenu = null;
 let currentModal = null;
@@ -154,6 +155,7 @@ export function hideModal() {
   if (currentModal) {
     currentModal.remove();
     currentModal = null;
+    document.removeEventListener('keydown', handleEscape);
   }
 }
 
@@ -605,24 +607,212 @@ export function showLayerContextMenu(e, layer) {
   e.preventDefault();
   e.stopPropagation();
 
-  const items = [
-    { label: 'Zoom to', action: () => layer.zoom() },
-    { label: 'Properties...', action: () => openLayerProperties(layer, 'info') },
-    { label: 'Style...', action: () => openLayerProperties(layer, 'style') },
-    { separator: true },
-    { label: 'Download', action: () => downloadLayer(layer) },
-    { separator: true },
-    { label: 'Remove', danger: true, action: () => layer.remove() }
-  ];
+  const items = [];
+  const isGroup = layer.type === 'group';
+
+  // Common items
+  items.push({ label: 'Zoom to', action: () => layer.zoom() });
+
+  if (!isGroup) {
+    items.push({ label: 'Open Table', action: () => openAttributeTable(layer) });
+  }
+
+  items.push({ label: 'Properties...', action: () => openLayerProperties(layer, 'info') });
+
+  if (!isGroup) {
+    items.push({ label: 'Style...', action: () => {
+      if (layer.type === 'vector') {
+        openStylePanel(layer);
+      } else if (layer.type === 'raster') {
+        openRasterStylePanel(layer);
+      } else {
+        openLayerProperties(layer, 'style');
+      }
+    }});
+  }
+
+  items.push({ separator: true });
+
+  // Group-specific items
+  if (isGroup) {
+    if (layer.expanded !== false) {
+      items.push({ label: 'Collapse', action: () => layer.collapse() });
+    } else {
+      items.push({ label: 'Expand', action: () => layer.expand() });
+    }
+    items.push({ label: 'Ungroup', action: () => ungroupLayer(layer) });
+    items.push({ separator: true });
+  } else {
+    // Add to group options
+    items.push({ label: 'Add to New Group', action: () => addToNewGroup(layer) });
+
+    // Get existing groups
+    const groups = getExistingGroups();
+    if (groups.length > 0) {
+      items.push({ label: 'Add to Group...', action: () => showAddToGroupDialog(layer, groups) });
+    }
+
+    // Remove from group if in one
+    const parentGroup = findParentGroup(layer);
+    if (parentGroup) {
+      items.push({ label: `Remove from "${parentGroup.name}"`, action: () => {
+        parentGroup.removeChild(layer);
+        termPrint(`Removed "${layer.name}" from group "${parentGroup.name}"`, 'green');
+      }});
+    }
+
+    items.push({ separator: true });
+  }
+
+  items.push({ label: 'Rename...', action: () => showRenameDialog(layer) });
+
+  if (!isGroup && layer.type === 'vector') {
+    items.push({ label: 'Download', action: () => downloadLayer(layer) });
+  }
+
+  items.push({ separator: true });
+  items.push({ label: 'Remove', danger: true, action: () => layer.remove(isGroup) });
 
   showContextMenu(e.clientX, e.clientY, items);
+}
+
+/**
+ * Get all existing group layers
+ */
+function getExistingGroups() {
+  const groups = [];
+  for (const layer of state.layers.values()) {
+    if (layer.type === 'group') {
+      groups.push(layer);
+    }
+  }
+  return groups;
+}
+
+/**
+ * Find parent group of a layer
+ */
+function findParentGroup(layer) {
+  for (const l of state.layers.values()) {
+    if (l.type === 'group' && l.children) {
+      if (l.children.includes(layer)) {
+        return l;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Add layer to a new group
+ */
+function addToNewGroup(layer) {
+  import('../core/group-layer.js').then(({ createGroupLayer }) => {
+    const group = createGroupLayer();
+    group.add(layer);
+    termPrint(`Created group "${group.name}" with "${layer.name}"`, 'green');
+  });
+}
+
+/**
+ * Ungroup a group layer (move children to top level)
+ */
+function ungroupLayer(group) {
+  if (group.type !== 'group') return;
+
+  const children = [...group.children];
+  group.clear();
+  group.remove(false);
+  termPrint(`Ungrouped "${group.name}" (${children.length} layers released)`, 'green');
+}
+
+/**
+ * Show dialog to add layer to existing group
+ */
+function showAddToGroupDialog(layer, groups) {
+  const content = document.createElement('div');
+  const options = groups.map(g =>
+    `<option value="${g.name}">${g.name} (${g.children?.length || 0} layers)</option>`
+  ).join('');
+
+  content.innerHTML = `
+    <div class="style-row">
+      <div class="style-label">Group</div>
+      <div class="style-control">
+        <select class="style-select" id="group-select">${options}</select>
+      </div>
+    </div>
+  `;
+
+  showModal(`Add "${layer.name}" to Group`, content, [
+    { label: 'Cancel' },
+    {
+      label: 'Add',
+      primary: true,
+      action: () => {
+        const select = document.getElementById('group-select');
+        if (select) {
+          import('../core/api.js').then(({ ly }) => {
+            const group = ly[select.value];
+            if (group && group.type === 'group') {
+              // Remove from current group if any
+              const parent = findParentGroup(layer);
+              if (parent) parent.removeChild(layer);
+              // Add to new group
+              group.add(layer);
+              termPrint(`Added "${layer.name}" to group "${group.name}"`, 'green');
+            }
+          });
+        }
+      }
+    }
+  ]);
+}
+
+/**
+ * Show rename dialog for a layer
+ */
+function showRenameDialog(layer) {
+  const content = document.createElement('div');
+  content.innerHTML = `
+    <div class="style-row">
+      <div class="style-label">New name</div>
+      <div class="style-control">
+        <input type="text" class="style-text-input" id="rename-input"
+               value="${layer.name}" style="width: 200px;">
+      </div>
+    </div>
+  `;
+
+  const { modal } = showModal(`Rename: ${layer.name}`, content, [
+    { label: 'Cancel' },
+    {
+      label: 'Rename',
+      primary: true,
+      action: () => {
+        const input = document.getElementById('rename-input');
+        if (input && input.value.trim()) {
+          layer.rename(input.value.trim());
+        }
+      }
+    }
+  ]);
+
+  // Focus and select the input
+  setTimeout(() => {
+    const input = document.getElementById('rename-input');
+    if (input) {
+      input.focus();
+      input.select();
+    }
+  }, 50);
 }
 
 /**
  * Download layer as GeoJSON
  */
 function downloadLayer(layer) {
-  if (!layer.geojson) {
+  if (layer.type !== 'vector') {
     termPrint('Cannot download raster layers', 'yellow');
     return;
   }

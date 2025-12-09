@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spinifex</title>
+  
+  <!-- OpenLayers -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@latest/ol.css">
+  <script src="https://cdn.jsdelivr.net/npm/ol@latest/dist/ol.js"></script>
+  
+  <!-- xterm.js -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+  
+  <!-- proj4 for projections -->
+  <script src="https://cdn.jsdelivr.net/npm/proj4@2.9.0/dist/proj4.js"></script>
+  
+  <!-- turf for spatial ops -->
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@7/turf.min.js"></script>
+  
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    :root {
+      --bg-dark: #1a1a1a;
+      --bg-panel: #252525;
+      --border: #3a3a3a;
+      --text: #e0e0e0;
+      --text-dim: #888;
+      --accent: #4a9eff;
+      --accent-dim: #2d5a8a;
+      --green: #4ec990;
+      --yellow: #e5c07b;
+      --red: #e06c75;
+    }
+    
+    body {
+      font-family: 'IBM Plex Mono', 'Consolas', monospace;
+      background: var(--bg-dark);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    
+    header {
+      display: flex;
+      align-items: center;
+      padding: 8px 16px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      gap: 16px;
+    }
+    
+    .logo {
+      font-size: 18px;
+      font-weight: bold;
+      color: var(--accent);
+      letter-spacing: 2px;
+    }
+    
+    .logo-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-weight: normal;
+    }
+    
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      margin-left: auto;
+    }
+    
+    .toolbar button {
+      background: var(--bg-dark);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 12px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+    }
+    
+    .toolbar button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    
+    main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+    
+    #layer-panel {
+      width: 220px;
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .panel-header {
+      padding: 10px 12px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
+    }
+    
+    #layer-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+    
+    .layer-item {
+      display: flex;
+      align-items: center;
+      padding: 8px;
+      gap: 8px;
+      border-radius: 4px;
+      margin-bottom: 4px;
+      background: var(--bg-dark);
+      border: 1px solid var(--border);
+    }
+    
+    .layer-item:hover {
+      border-color: var(--accent-dim);
+    }
+    
+    .layer-visibility {
+      cursor: pointer;
+      opacity: 0.8;
+      font-size: 14px;
+    }
+    
+    .layer-visibility:hover {
+      opacity: 1;
+    }
+    
+    .layer-visibility.hidden {
+      opacity: 0.3;
+    }
+    
+    .layer-name {
+      flex: 1;
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .layer-count {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+    
+    .layer-actions {
+      display: flex;
+      gap: 4px;
+    }
+    
+    .layer-actions button {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      padding: 2px 4px;
+      font-size: 11px;
+    }
+    
+    .layer-actions button:hover {
+      color: var(--accent);
+    }
+    
+    #map-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    #map {
+      flex: 1;
+      background: #0a0a0a;
+    }
+    
+    #terminal-container {
+      height: 200px;
+      background: #000;
+      border-top: 1px solid var(--border);
+    }
+    
+    #terminal-container .xterm {
+      padding: 8px;
+    }
+    
+    .status-bar {
+      display: flex;
+      padding: 4px 12px;
+      background: var(--bg-panel);
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-dim);
+      gap: 24px;
+    }
+    
+    .status-item {
+      display: flex;
+      gap: 6px;
+    }
+    
+    .status-label {
+      color: var(--text-dim);
+    }
+    
+    .status-value {
+      color: var(--text);
+    }
+    
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      color: var(--text-dim);
+      text-align: center;
+      gap: 8px;
+    }
+    
+    .empty-state-hint {
+      font-size: 11px;
+    }
+
+    /* Popup styles */
+    .ol-popup {
+      position: absolute;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 12px;
+      min-width: 200px;
+      max-width: 320px;
+      max-height: 300px;
+      overflow-y: auto;
+      font-size: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+    
+    .ol-popup::before {
+      content: '';
+      position: absolute;
+      bottom: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-left: 8px solid transparent;
+      border-right: 8px solid transparent;
+      border-top: 8px solid var(--border);
+    }
+    
+    .ol-popup-closer {
+      position: absolute;
+      top: 4px;
+      right: 8px;
+      cursor: pointer;
+      color: var(--text-dim);
+    }
+    
+    .ol-popup-closer:hover {
+      color: var(--accent);
+    }
+    
+    .popup-title {
+      font-weight: bold;
+      color: var(--accent);
+      margin-bottom: 8px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .popup-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 2px 0;
+    }
+    
+    .popup-key {
+      color: var(--text-dim);
+    }
+    
+    .popup-value {
+      color: var(--text);
+      text-align: right;
+      max-width: 60%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">
+      SPINIFEX
+      <span class="logo-sub">ultrabasic web gis</span>
+    </div>
+    <div class="toolbar">
+      <button onclick="runInTerminal('load(sample)')">Load Sample</button>
+      <button onclick="runInTerminal('clear()')">Clear All</button>
+    </div>
+  </header>
+  
+  <main>
+    <aside id="layer-panel">
+      <div class="panel-header">Layers</div>
+      <div id="layer-list">
+        <div class="empty-state">
+          <div>No layers loaded</div>
+          <div class="empty-state-hint">load(file) or drag &amp; drop</div>
+        </div>
+      </div>
+    </aside>
+    
+    <div id="map-container">
+      <div id="map"></div>
+      <div id="terminal-container"></div>
+    </div>
+  </main>
+  
+  <div class="status-bar">
+    <div class="status-item">
+      <span class="status-label">CRS:</span>
+      <span class="status-value" id="status-crs">EPSG:4326</span>
+    </div>
+    <div class="status-item">
+      <span class="status-label">Cursor:</span>
+      <span class="status-value" id="status-coords">--.----, --.----</span>
+    </div>
+    <div class="status-item">
+      <span class="status-label">Layers:</span>
+      <span class="status-value" id="status-layers">0</span>
+    </div>
+  </div>
+
+  <!-- Popup overlay -->
+  <div id="popup" class="ol-popup">
+    <span class="ol-popup-closer" onclick="closePopup()">×</span>
+    <div id="popup-content"></div>
+  </div>
+
+  <script>
+    // ============================================
+    // SPINIFEX - JS REPL Version
+    // ============================================
+    
+    // --- State ---
+    const state = {
+      layers: new Map(),
+      crs: 'EPSG:4326',
+      history: [],
+      historyIndex: -1,
+      layerCounter: 0,
+      selection: null
+    };
+    
+    // --- Sample Data ---
+    const sample = {
+      geology: {
+        type: 'FeatureCollection',
+        features: [
+          { type: 'Feature', properties: { unit: 'granite', age_ma: 2700, area_km2: 145 }, geometry: { type: 'Polygon', coordinates: [[[-49.5, -6.0], [-49.0, -6.0], [-49.0, -5.5], [-49.5, -5.5], [-49.5, -6.0]]] }},
+          { type: 'Feature', properties: { unit: 'bif', age_ma: 2750, area_km2: 89 }, geometry: { type: 'Polygon', coordinates: [[[-49.0, -6.0], [-48.5, -6.0], [-48.5, -5.5], [-49.0, -5.5], [-49.0, -6.0]]] }},
+          { type: 'Feature', properties: { unit: 'mafic', age_ma: 2700, area_km2: 210 }, geometry: { type: 'Polygon', coordinates: [[[-49.5, -5.5], [-49.0, -5.5], [-49.0, -5.0], [-49.5, -5.0], [-49.5, -5.5]]] }},
+          { type: 'Feature', properties: { unit: 'schist', age_ma: 2680, area_km2: 167 }, geometry: { type: 'Polygon', coordinates: [[[-49.0, -5.5], [-48.5, -5.5], [-48.5, -5.0], [-49.0, -5.0], [-49.0, -5.5]]] }},
+        ]
+      },
+      drillholes: {
+        type: 'FeatureCollection',
+        features: [
+          { type: 'Feature', properties: { id: 'DH001', depth_m: 120, fe_pct: 62.5 }, geometry: { type: 'Point', coordinates: [-49.25, -5.75] }},
+          { type: 'Feature', properties: { id: 'DH002', depth_m: 85, fe_pct: 58.2 }, geometry: { type: 'Point', coordinates: [-48.75, -5.75] }},
+          { type: 'Feature', properties: { id: 'DH003', depth_m: 150, fe_pct: 64.1 }, geometry: { type: 'Point', coordinates: [-49.25, -5.25] }},
+          { type: 'Feature', properties: { id: 'DH004', depth_m: 95, fe_pct: 55.8 }, geometry: { type: 'Point', coordinates: [-48.75, -5.25] }},
+          { type: 'Feature', properties: { id: 'DH005', depth_m: 110, fe_pct: 61.0 }, geometry: { type: 'Point', coordinates: [-49.0, -5.5] }},
+        ]
+      }
+    };
+    
+    // --- Geology Colors ---
+    const geologyColors = {
+      granite: '#ff9999',
+      bif: '#666666',
+      mafic: '#669966',
+      schist: '#cc99ff'
+    };
+    
+    // --- Initialize Map ---
+    const map = new ol.Map({
+      target: 'map',
+      layers: [
+        new ol.layer.Tile({
+          source: new ol.source.XYZ({
+            url: 'https://{a-c}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+            attributions: '© CartoDB © OpenStreetMap'
+          })
+        })
+      ],
+      view: new ol.View({
+        center: ol.proj.fromLonLat([-49.0, -5.5]),
+        zoom: 9
+      }),
+      controls: ol.control.defaults.defaults({ attribution: false }).extend([
+        new ol.control.ScaleLine()
+      ])
+    });
+    
+    // --- Popup Overlay ---
+    const popupEl = document.getElementById('popup');
+    const popupContent = document.getElementById('popup-content');
+    
+    const popup = new ol.Overlay({
+      element: popupEl,
+      positioning: 'bottom-center',
+      offset: [0, -10],
+      autoPan: true
+    });
+    map.addOverlay(popup);
+    popupEl.style.display = 'none';
+    
+    function closePopup() {
+      popup.setPosition(undefined);
+      popupEl.style.display = 'none';
+    }
+    
+    // --- Map Interactions ---
+    map.on('pointermove', (evt) => {
+      const coords = ol.proj.toLonLat(evt.coordinate);
+      document.getElementById('status-coords').textContent = 
+        `${coords[0].toFixed(4)}, ${coords[1].toFixed(4)}`;
+    });
+    
+    // Click to identify
+    map.on('singleclick', (evt) => {
+      const features = [];
+      map.forEachFeatureAtPixel(evt.pixel, (feature, layer) => {
+        for (const [id, lyr] of state.layers) {
+          if (lyr.olLayer === layer) {
+            features.push({ feature, layerName: lyr.name });
+            break;
+          }
+        }
+      });
+      
+      if (features.length > 0) {
+        let html = '';
+        features.forEach(({ feature, layerName }) => {
+          const props = feature.getProperties();
+          html += `<div class="popup-title">${layerName}</div>`;
+          for (const [key, val] of Object.entries(props)) {
+            if (key === 'geometry') continue;
+            html += `<div class="popup-row">
+              <span class="popup-key">${key}</span>
+              <span class="popup-value">${val}</span>
+            </div>`;
+          }
+        });
+        popupContent.innerHTML = html;
+        popup.setPosition(evt.coordinate);
+        popupEl.style.display = 'block';
+      } else {
+        closePopup();
+      }
+    });
+    
+    // --- Initialize Terminal ---
+    const term = new Terminal({
+      fontSize: 13,
+      fontFamily: "'IBM Plex Mono', 'Consolas', monospace",
+      theme: {
+        background: '#000000',
+        foreground: '#e0e0e0',
+        cursor: '#4a9eff',
+        cursorAccent: '#000000',
+        selectionBackground: '#4a9eff44'
+      },
+      cursorBlink: true,
+      rows: 9
+    });
+    
+    term.open(document.getElementById('terminal-container'));
+    
+    let commandBuffer = '';
+    
+    const colors = {
+      red: '\x1b[31m',
+      green: '\x1b[32m',
+      yellow: '\x1b[33m',
+      blue: '\x1b[34m',
+      magenta: '\x1b[35m',
+      cyan: '\x1b[36m',
+      dim: '\x1b[90m',
+      reset: '\x1b[0m'
+    };
+    
+    function termPrint(text, color = null) {
+      if (color && colors[color]) {
+        term.writeln(`${colors[color]}${text}${colors.reset}`);
+      } else {
+        term.writeln(text);
+      }
+    }
+    
+    function termPrompt() {
+      term.write('\r\n\x1b[34m>\x1b[0m ');
+    }
+    
+    // Welcome
+    termPrint('');
+    termPrint('  ╲╱╲    SPINIFEX', 'blue');
+    termPrint('   ╲╱╲   ultrabasic web gis', 'dim');
+    termPrint('  ╲╱╲╱╲  ');
+    termPrint('');
+    termPrint('JavaScript REPL. Try: load(sample) or help()', 'dim');
+    termPrompt();
+    
+    // Terminal input
+    term.onKey(({ key, domEvent }) => {
+      const code = domEvent.keyCode;
+      
+      if (code === 13) {
+        term.writeln('');
+        if (commandBuffer.trim()) {
+          state.history.push(commandBuffer);
+          state.historyIndex = state.history.length;
+          executeJS(commandBuffer.trim());
+        }
+        commandBuffer = '';
+        termPrompt();
+      } else if (code === 8) {
+        if (commandBuffer.length > 0) {
+          commandBuffer = commandBuffer.slice(0, -1);
+          term.write('\b \b');
+        }
+      } else if (domEvent.ctrlKey && code === 67) {
+        commandBuffer = '';
+        term.writeln('^C');
+        termPrompt();
+      } else if (code === 38) {
+        if (state.historyIndex > 0) {
+          state.historyIndex--;
+          commandBuffer = state.history[state.historyIndex];
+          term.write('\r\x1b[K\x1b[34m>\x1b[0m ' + commandBuffer);
+        }
+      } else if (code === 40) {
+        if (state.historyIndex < state.history.length - 1) {
+          state.historyIndex++;
+          commandBuffer = state.history[state.historyIndex];
+          term.write('\r\x1b[K\x1b[34m>\x1b[0m ' + commandBuffer);
+        } else {
+          state.historyIndex = state.history.length;
+          commandBuffer = '';
+          term.write('\r\x1b[K\x1b[34m>\x1b[0m ');
+        }
+      } else if (code >= 32 && code <= 126) {
+        commandBuffer += key;
+        term.write(key);
+      }
+    });
+    
+    // ============================================
+    // LAYER CLASS
+    // ============================================
+    
+    class Layer {
+      constructor(id, name, geojson, olLayer, source) {
+        this._id = id;
+        this._name = name;
+        this._geojson = geojson;
+        this._olLayer = olLayer;
+        this._source = source;
+        this._visible = true;
+      }
+      
+      get name() { return this._name; }
+      get id() { return this._id; }
+      get count() { return this._geojson.features.length; }
+      get features() { return this._geojson.features; }
+      get geojson() { return this._geojson; }
+      get visible() { return this._visible; }
+      get olLayer() { return this._olLayer; }
+      get source() { return this._source; }
+      
+      get fields() {
+        const f = this._geojson.features[0];
+        return f ? Object.keys(f.properties) : [];
+      }
+      
+      get geomType() {
+        const f = this._geojson.features[0];
+        return f ? f.geometry.type : null;
+      }
+      
+      get extent() {
+        const ext = this._source.getExtent();
+        const min = ol.proj.toLonLat([ext[0], ext[1]]);
+        const max = ol.proj.toLonLat([ext[2], ext[3]]);
+        return { minX: min[0], minY: min[1], maxX: max[0], maxY: max[1] };
+      }
+      
+      show() {
+        this._olLayer.setVisible(true);
+        this._visible = true;
+        updateLayerPanel();
+        return this;
+      }
+      
+      hide() {
+        this._olLayer.setVisible(false);
+        this._visible = false;
+        updateLayerPanel();
+        return this;
+      }
+      
+      zoom() {
+        const extent = this._source.getExtent();
+        map.getView().fit(extent, { padding: [50, 50, 50, 50], duration: 500 });
+        return this;
+      }
+      
+      style(opts) {
+        applyStyle(this, opts);
+        return this;
+      }
+      
+      where(predicate) {
+        const filtered = this._geojson.features.filter(predicate);
+        const self = this;
+        return {
+          count: filtered.length,
+          features: filtered,
+          save(name) {
+            const fc = { type: 'FeatureCollection', features: filtered };
+            return api.load(fc, name || `${self._name}_filtered`);
+          }
+        };
+      }
+      
+      remove() {
+        map.removeLayer(this._olLayer);
+        state.layers.delete(this._id);
+        delete api[this._name];
+        updateLayerPanel();
+        return null;
+      }
+      
+      stats(field) {
+        const values = this._geojson.features
+          .map(f => f.properties[field])
+          .filter(v => typeof v === 'number');
+        if (values.length === 0) return null;
+        const sum = values.reduce((a, b) => a + b, 0);
+        const sorted = [...values].sort((a, b) => a - b);
+        return {
+          count: values.length,
+          min: Math.min(...values),
+          max: Math.max(...values),
+          sum,
+          mean: sum / values.length,
+          median: sorted[Math.floor(sorted.length / 2)]
+        };
+      }
+      
+      toString() {
+        return `Layer<${this._name}> (${this.count} ${this.geomType}s)`;
+      }
+    }
+    
+    // ============================================
+    // API
+    // ============================================
+    
+    const api = {
+      sample,
+      
+      load(data, name) {
+        if (data === sample) {
+          const results = [];
+          for (const [key, geojson] of Object.entries(sample)) {
+            results.push(loadGeoJSON(key, geojson));
+          }
+          if (results.length > 0) results[0].zoom();
+          termPrint(`Loaded ${results.length} layers: ${results.map(l => l.name).join(', ')}`, 'green');
+          return results;
+        }
+        
+        if (typeof data === 'object' && data.type === 'FeatureCollection') {
+          const layer = loadGeoJSON(name || `layer_${state.layerCounter}`, data);
+          termPrint(`Loaded: ${layer.name} (${layer.count} features)`, 'green');
+          return layer;
+        }
+        
+        termPrint('Usage: load(geojson, "name") or load(sample)', 'yellow');
+        return null;
+      },
+      
+      layers() {
+        const list = [];
+        state.layers.forEach(l => list.push(l));
+        return list;
+      },
+      
+      ls() { return api.layers(); },
+      
+      clear() {
+        state.layers.forEach(layer => {
+          map.removeLayer(layer.olLayer);
+          delete api[layer.name];
+        });
+        state.layers.clear();
+        updateLayerPanel();
+        termPrint('Cleared all layers.', 'yellow');
+      },
+      
+      zoom(target) {
+        if (target instanceof Layer) target.zoom();
+        else if (Array.isArray(target) && target.length === 4) {
+          const ext = ol.proj.transformExtent(target, 'EPSG:4326', 'EPSG:3857');
+          map.getView().fit(ext, { padding: [50, 50, 50, 50], duration: 500 });
+        }
+        return target;
+      },
+      
+      buffer(layer, distance, opts = {}) {
+        if (!(layer instanceof Layer)) {
+          termPrint('Usage: buffer(layer, distance)', 'red');
+          return null;
+        }
+        let dist = distance;
+        if (typeof distance === 'string') {
+          const match = distance.match(/^([\d.]+)(m|km|mi|ft)?$/);
+          if (match) {
+            dist = parseFloat(match[1]);
+            const unit = match[2] || 'km';
+            if (unit === 'm') dist /= 1000;
+            else if (unit === 'mi') dist *= 1.60934;
+            else if (unit === 'ft') dist /= 3280.84;
+          }
+        }
+        const buffered = turf.buffer(layer.geojson, dist, { units: 'kilometers' });
+        return loadGeoJSON(opts.as || `${layer.name}_buffer`, buffered);
+      },
+      
+      intersect(layer1, layer2, opts = {}) {
+        if (!(layer1 instanceof Layer) || !(layer2 instanceof Layer)) {
+          termPrint('Usage: intersect(layer1, layer2)', 'red');
+          return null;
+        }
+        const results = [];
+        for (const f1 of layer1.features) {
+          for (const f2 of layer2.features) {
+            try {
+              const inter = turf.intersect(turf.featureCollection([f1, f2]));
+              if (inter) results.push(inter);
+            } catch (e) {}
+          }
+        }
+        return loadGeoJSON(opts.as || `${layer1.name}_x_${layer2.name}`, { type: 'FeatureCollection', features: results });
+      },
+      
+      union(layer1, layer2, opts = {}) {
+        if (!(layer1 instanceof Layer) || !(layer2 instanceof Layer)) {
+          termPrint('Usage: union(layer1, layer2)', 'red');
+          return null;
+        }
+        const combined = { type: 'FeatureCollection', features: [...layer1.features, ...layer2.features] };
+        let result;
+        try { result = turf.dissolve(combined); } catch { result = combined; }
+        return loadGeoJSON(opts.as || `${layer1.name}_union`, result);
+      },
+      
+      centroid(layer, opts = {}) {
+        if (!(layer instanceof Layer)) {
+          termPrint('Usage: centroid(layer)', 'red');
+          return null;
+        }
+        const centroids = layer.features.map(f => {
+          const c = turf.centroid(f);
+          c.properties = { ...f.properties };
+          return c;
+        });
+        return loadGeoJSON(opts.as || `${layer.name}_centroids`, { type: 'FeatureCollection', features: centroids });
+      },
+      
+      download(layer, filename) {
+        if (!(layer instanceof Layer)) {
+          termPrint('Usage: download(layer, "filename.geojson")', 'red');
+          return;
+        }
+        const data = JSON.stringify(layer.geojson, null, 2);
+        const blob = new Blob([data], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename || `${layer.name}.geojson`;
+        a.click();
+        URL.revokeObjectURL(url);
+        termPrint(`Exported: ${a.download}`, 'green');
+      },
+      
+      help(fn) {
+        if (fn === undefined) {
+          termPrint('');
+          termPrint('╔══════════════════════════════════════╗', 'blue');
+          termPrint('║        SPINIFEX API                  ║', 'blue');
+          termPrint('╚══════════════════════════════════════╝', 'blue');
+          termPrint('');
+          termPrint('Loading & Management', 'yellow');
+          termPrint('  load(sample)              Load sample data');
+          termPrint('  load(geojson, "name")     Load GeoJSON');
+          termPrint('  layers() / ls()           List all layers');
+          termPrint('  clear()                   Remove all layers');
+          termPrint('');
+          termPrint('Layer Methods', 'yellow');
+          termPrint('  layer.show()              Show layer');
+          termPrint('  layer.hide()              Hide layer');
+          termPrint('  layer.zoom()              Zoom to extent');
+          termPrint('  layer.remove()            Remove layer');
+          termPrint('  layer.style({...})        Set style');
+          termPrint('  layer.where(fn)           Filter features');
+          termPrint('  layer.stats("field")      Field statistics');
+          termPrint('');
+          termPrint('Layer Properties', 'yellow');
+          termPrint('  layer.count               Feature count');
+          termPrint('  layer.fields              Field names');
+          termPrint('  layer.features            GeoJSON features');
+          termPrint('  layer.extent              Bounding box');
+          termPrint('  layer.geomType            Geometry type');
+          termPrint('');
+          termPrint('Spatial Operations', 'yellow');
+          termPrint('  buffer(layer, "50m")      Buffer features');
+          termPrint('  intersect(a, b)           Intersect layers');
+          termPrint('  union(a, b)               Union layers');
+          termPrint('  centroid(layer)           Get centroids');
+          termPrint('');
+          termPrint('Export', 'yellow');
+          termPrint('  download(layer, "file")   Download GeoJSON');
+          termPrint('');
+          termPrint('Click features on map to inspect.', 'dim');
+          termPrint('');
+          return;
+        }
+        
+        const docs = {
+          load: `load(data, name?)
+  Load GeoJSON or sample data.
+  
+  Examples:
+    load(sample)
+    load(myGeojson, "parcels")`,
+          buffer: `buffer(layer, distance, opts?)
+  Create buffer around features.
+  Distance can be number (km) or string: "50m", "1km"
+  
+  Example:
+    buffer(geology, "500m")
+    buffer(drillholes, 2)  // 2 km`,
+          where: `layer.where(predicate)
+  Filter features using a function.
+  Returns { count, features, save(name) }
+  
+  Examples:
+    geology.where(f => f.properties.age_ma > 2700)
+    drillholes.where(f => f.properties.fe_pct > 60).save("high_grade")`,
+          style: `layer.style(options)
+  Set layer style. Options: fill, stroke, opacity, radius, width
+  
+  Examples:
+    geology.style({ fill: "#ff0000", opacity: 0.7 })
+    drillholes.style({ fill: "#ffff00", radius: 10 })`,
+          stats: `layer.stats(field)
+  Get statistics for a numeric field.
+  Returns: { min, max, mean, median, sum, count }
+  
+  Example:
+    drillholes.stats("fe_pct")`,
+        };
+        
+        const name = typeof fn === 'function' ? fn.name : String(fn);
+        if (docs[name]) {
+          termPrint('');
+          termPrint(docs[name], 'cyan');
+          termPrint('');
+        } else {
+          termPrint(`No help for: ${name}`, 'yellow');
+        }
+      },
+      
+      // Direct access to internals for power users
+      print: termPrint,
+      map,
+      state,
+      turf,
+      ol
+    };
+    
+    // ============================================
+    // JS EXECUTION
+    // ============================================
+    
+    function executeJS(code) {
+      try {
+        const fn = new Function(...Object.keys(api), `
+          "use strict";
+          return (${code});
+        `);
+        const result = fn(...Object.values(api));
+        
+        if (result !== undefined && result !== null) {
+          if (result instanceof Layer) {
+            termPrint(result.toString(), 'cyan');
+          } else if (Array.isArray(result) && result[0] instanceof Layer) {
+            termPrint(`[${result.map(l => l.name).join(', ')}]`, 'cyan');
+          } else if (typeof result === 'object') {
+            termPrint(JSON.stringify(result, null, 2), 'cyan');
+          } else {
+            termPrint(String(result), 'cyan');
+          }
+        }
+      } catch (e) {
+        try {
+          const fn = new Function(...Object.keys(api), `
+            "use strict";
+            ${code}
+          `);
+          fn(...Object.values(api));
+        } catch (e2) {
+          termPrint(`Error: ${e.message}`, 'red');
+        }
+      }
+    }
+    
+    function runInTerminal(code) {
+      term.writeln('');
+      term.write(`\x1b[90m${code}\x1b[0m`);
+      term.writeln('');
+      executeJS(code);
+      termPrompt();
+    }
+    
+    // ============================================
+    // INTERNAL HELPERS
+    // ============================================
+    
+    function loadGeoJSON(name, geojson) {
+      const cleanName = name.replace(/[^a-zA-Z0-9_]/g, '_');
+      const id = `layer_${state.layerCounter++}`;
+      
+      const source = new ol.source.Vector({
+        features: new ol.format.GeoJSON().readFeatures(geojson, {
+          featureProjection: 'EPSG:3857'
+        })
+      });
+      
+      const geomType = geojson.features[0]?.geometry?.type || 'Point';
+      const style = createDefaultStyle(geomType, cleanName);
+      
+      const olLayer = new ol.layer.Vector({ source, style });
+      map.addLayer(olLayer);
+      
+      const layer = new Layer(id, cleanName, geojson, olLayer, source);
+      state.layers.set(id, layer);
+      api[cleanName] = layer;
+      
+      updateLayerPanel();
+      updateStatusBar();
+      return layer;
+    }
+    
+    function createDefaultStyle(geomType, layerName) {
+      if (layerName === 'geology') {
+        return (feature) => {
+          const unit = feature.get('unit');
+          const color = geologyColors[unit] || '#888888';
+          return new ol.style.Style({
+            fill: new ol.style.Fill({ color: color + 'aa' }),
+            stroke: new ol.style.Stroke({ color: '#000', width: 1 })
+          });
+        };
+      }
+      
+      const colorIndex = state.layerCounter % 10;
+      const defaultColors = ['#4a9eff', '#ff6b6b', '#4ecdc4', '#ffe66d', '#95e1d3', '#f38181', '#aa96da', '#fcbad3', '#a8d8ea', '#ffb6b9'];
+      const color = defaultColors[colorIndex];
+      
+      if (geomType.includes('Point')) {
+        return new ol.style.Style({
+          image: new ol.style.Circle({
+            radius: 6,
+            fill: new ol.style.Fill({ color }),
+            stroke: new ol.style.Stroke({ color: '#000', width: 1 })
+          })
+        });
+      }
+      
+      return new ol.style.Style({
+        fill: new ol.style.Fill({ color: color + '88' }),
+        stroke: new ol.style.Stroke({ color: '#000', width: 1 })
+      });
+    }
+    
+    function applyStyle(layer, opts) {
+      const geomType = layer.geomType || 'Polygon';
+      const fill = opts.fill || '#4a9eff';
+      const stroke = opts.stroke || '#000000';
+      const opacity = parseFloat(opts.opacity) ?? 0.5;
+      const radius = parseFloat(opts.radius) || 6;
+      const width = parseFloat(opts.width) || 1;
+      
+      const fillColor = hexToRgba(fill, opacity);
+      
+      let style;
+      if (geomType.includes('Point')) {
+        style = new ol.style.Style({
+          image: new ol.style.Circle({
+            radius,
+            fill: new ol.style.Fill({ color: fillColor }),
+            stroke: new ol.style.Stroke({ color: stroke, width })
+          })
+        });
+      } else {
+        style = new ol.style.Style({
+          fill: new ol.style.Fill({ color: fillColor }),
+          stroke: new ol.style.Stroke({ color: stroke, width })
+        });
+      }
+      
+      layer._olLayer.setStyle(style);
+    }
+    
+    function hexToRgba(hex, opacity) {
+      if (hex.startsWith('rgb')) return hex;
+      const r = parseInt(hex.slice(1, 3), 16) || 0;
+      const g = parseInt(hex.slice(3, 5), 16) || 0;
+      const b = parseInt(hex.slice(5, 7), 16) || 0;
+      return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+    }
+    
+    function updateLayerPanel() {
+      const container = document.getElementById('layer-list');
+      
+      if (state.layers.size === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div>No layers loaded</div>
+            <div class="empty-state-hint">load(sample) or drag &amp; drop</div>
+          </div>`;
+        return;
+      }
+      
+      let html = '';
+      state.layers.forEach(layer => {
+        const visClass = layer.visible ? '' : 'hidden';
+        html += `
+          <div class="layer-item">
+            <span class="layer-visibility ${visClass}" onclick="toggleVis('${layer.name}')">👁</span>
+            <span class="layer-name">${layer.name}</span>
+            <span class="layer-count">(${layer.count})</span>
+            <div class="layer-actions">
+              <button onclick="runInTerminal('${layer.name}.zoom()')" title="Zoom">⌖</button>
+              <button onclick="runInTerminal('${layer.name}.remove()')" title="Remove">×</button>
+            </div>
+          </div>`;
+      });
+      
+      container.innerHTML = html;
+      updateStatusBar();
+    }
+    
+    function updateStatusBar() {
+      document.getElementById('status-layers').textContent = state.layers.size;
+    }
+    
+    function toggleVis(name) {
+      const layer = api[name];
+      if (layer) runInTerminal(layer.visible ? `${name}.hide()` : `${name}.show()`);
+    }
+    
+    // ============================================
+    // DRAG & DROP
+    // ============================================
+    
+    const mapEl = document.getElementById('map');
+    
+    mapEl.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      mapEl.style.outline = '2px dashed var(--accent)';
+    });
+    
+    mapEl.addEventListener('dragleave', () => {
+      mapEl.style.outline = 'none';
+    });
+    
+    mapEl.addEventListener('drop', (e) => {
+      e.preventDefault();
+      mapEl.style.outline = 'none';
+      
+      const file = e.dataTransfer.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const geojson = JSON.parse(event.target.result);
+            const name = file.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_]/g, '_');
+            const layer = loadGeoJSON(name, geojson);
+            layer.zoom();
+            termPrint('');
+            termPrint(`Loaded: ${name} (${layer.count} features)`, 'green');
+            termPrompt();
+          } catch (err) {
+            termPrint('');
+            termPrint(`Error: ${err.message}`, 'red');
+            termPrompt();
+          }
+        };
+        reader.readAsText(file);
+      }
+    });
+  </script>
+</body>
+</html>

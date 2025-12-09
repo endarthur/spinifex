@@ -6,6 +6,7 @@ import { loadCSV, isCSV } from './csv.js';
 import { loadXLSX, isXLSX } from './xlsx.js';
 import { loadShapefile, isShapefile } from './shapefile.js';
 import { loadGeoTIFF, isGeoTIFF } from './geotiff.js';
+import { loadSRTMFromWorkspace } from '../data/srtm.js';
 import { termPrint } from '../ui/terminal.js';
 
 /**
@@ -255,6 +256,8 @@ export function getFormatFromExtension(filename) {
     case 'tif':
     case 'tiff':
       return 'geotiff';
+    case 'srtm':
+      return 'srtm';
     default:
       return null;
   }
@@ -264,5 +267,6 @@ export function getFormatFromExtension(filename) {
 export { loadGeoJSON } from './geojson.js';
 export { loadCSV } from './csv.js';
 export { loadXLSX } from './xlsx.js';
-export { loadShapefile } from './shapefile.js';
-export { loadGeoTIFF } from './geotiff.js';
+export { loadShapefile, downloadShapefile, exportShapefile } from './shapefile.js';
+export { loadGeoTIFF, loadCOG } from './geotiff.js';
+export { geojsonToKml, exportKml, downloadKml } from './kml.js';

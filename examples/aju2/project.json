@@ -1,0 +1,29 @@
+{
+  "name": "aju2",
+  "version": "1.0",
+  "created": "2025-12-07T15:48:40.162Z",
+  "crs": "EPSG:4326",
+  "view": {
+    "center": [
+      -37.05966703024831,
+      -10.979992215490952
+    ],
+    "zoom": 13.957237562369743
+  },
+  "basemaps": [
+    {
+      "name": "dark",
+      "type": "basemap",
+      "basemapKey": "dark",
+      "url": "https://{a-c}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+      "attribution": "© CartoDB © OpenStreetMap",
+      "label": "Dark Matter",
+      "group": "carto",
+      "visible": true,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "zIndex": -100
+    }
+  ],
+  "layers": []
+}

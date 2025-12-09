@@ -1,0 +1,1005 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          118.41862189099065,
+          -23.3336367842832
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0001",
+        "depth_m": 55,
+        "fe_pct": 57.44,
+        "sio2_pct": 3.32,
+        "al2o3_pct": 3.71,
+        "loi_pct": 3.48,
+        "rock_type": "Laterite",
+        "year": 2022
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          116.50358782105626,
+          -22.66553946893978
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0002",
+        "depth_m": 168,
+        "fe_pct": 68,
+        "sio2_pct": 13.17,
+        "al2o3_pct": 4.37,
+        "loi_pct": 9.42,
+        "rock_type": "Shale",
+        "year": 2021
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          117.16568678969135,
+          -21.984635315164667
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0003",
+        "depth_m": 271,
+        "fe_pct": 49.73,
+        "sio2_pct": 7.34,
+        "al2o3_pct": 3.83,
+        "loi_pct": 11.93,
+        "rock_type": "Laterite",
+        "year": 2018
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          117.71386998053865,
+          -21.69020847181098
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0004",
+        "depth_m": 120,
+        "fe_pct": 37.25,
+        "sio2_pct": 7.36,
+        "al2o3_pct": 7.81,
+        "loi_pct": 5.84,
+        "rock_type": "Granite",
+        "year": 2020
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          116.70679048653176,
+          -21.872736418150872
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0005",
+        "depth_m": 172,
+        "fe_pct": 49.45,
+        "sio2_pct": 13.45,
+        "al2o3_pct": 6.35,
+        "loi_pct": 7.37,
+        "rock_type": "Shale",
+        "year": 2018
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          118.43906494572624,
+          -23.422730170878697
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0006",
+        "depth_m": 65,
+        "fe_pct": 68,
+        "sio2_pct": 5.11,
+        "al2o3_pct": 1.35,
+        "loi_pct": 3.67,
+        "rock_type": "Shale",
+        "year": 2022
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          118.48207321683456,
+          -23.48751874778613
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0007",
+        "depth_m": 212,
+        "fe_pct": 56.93,
+        "sio2_pct": 5.21,
+        "al2o3_pct": 3.16,
+        "loi_pct": 8.57,
+        "rock_type": "Shale",
+        "year": 2023
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          117.45053314070324,
+          -22.21109244843219
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0008",
+        "depth_m": 278,
+        "fe_pct": 53.34,
+        "sio2_pct": 5.96,
+        "al2o3_pct": 4.9,
+        "loi_pct": 5.26,
+        "rock_type": "Shale",
+        "year": 2024
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          117.82525213552992,
+          -22.574939731331224
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0009",
+        "depth_m": 57,
+        "fe_pct": 34.17,
+        "sio2_pct": 10.52,
+        "al2o3_pct": 2.43,
+        "loi_pct": 3.78,
+        "rock_type": "Laterite",
+        "year": 2018
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          116.53934653961905,
+          -23.08870666466895
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0010",
+        "depth_m": 92,
+        "fe_pct": 66.75,
+        "sio2_pct": 8.52,
+        "al2o3_pct": 6.02,
+        "loi_pct": 8.78,
+        "rock_type": "BIF",
+        "year": 2020
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          117.59368613213519,
+          -22.662926288299712
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0011",
+        "depth_m": 356,
+        "fe_pct": 45.35,
+        "sio2_pct": 11.48,
+        "al2o3_pct": 7.86,
+        "loi_pct": 8.87,
+        "rock_type": "Granite",
+        "year": 2022
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          116.8295103324638,
+          -23.219528466568175
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0012",
+        "depth_m": 183,
+        "fe_pct": 38.84,
+        "sio2_pct": 7.27,
+        "al2o3_pct": 6.99,
+        "loi_pct": 4.8,
+        "rock_type": "Granite",
+        "year": 2022
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          118.27750045521687,
+          -22.965335338235626
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0013",
+        "depth_m": 335,
+        "fe_pct": 38.05,
+        "sio2_pct": 7.14,
+        "al2o3_pct": 6.27,
+        "loi_pct": 5.04,
+        "rock_type": "Shale",
+        "year": 2019
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          118.12784878543488,
+          -23.250196222220538
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0014",
+        "depth_m": 234,
+        "fe_pct": 52.37,
+        "sio2_pct": 9.33,
+        "al2o3_pct": 1.86,
+        "loi_pct": 6.35,
+        "rock_type": "Laterite",
+        "year": 2023
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          117.75400865028102,
+          -23.345638923724035
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0015",
+        "depth_m": 154,
+        "fe_pct": 48.7,
+        "sio2_pct": 14.37,
+        "al2o3_pct": 7.07,
+        "loi_pct": 4.93,
+        "rock_type": "Dolerite",
+        "year": 2020
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          116.75332557584102,
+          -21.770400094731567
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0016",
+        "depth_m": 169,
+        "fe_pct": 44.02,
+        "sio2_pct": 4.74,
+        "al2o3_pct": 6.01,
+        "loi_pct": 11.74,
+        "rock_type": "Dolerite",
+        "year": 2022
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          116.76056659846286,
+          -21.764885217434514
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0017",
+        "depth_m": 337,
+        "fe_pct": 29.19,
+        "sio2_pct": 14.28,
+        "al2o3_pct": 3.85,
+        "loi_pct": 7.31,
+        "rock_type": "Shale",
+        "year": 2021
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          118.42641057009853,
+          -22.686058459221176
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0018",
+        "depth_m": 270,
+        "fe_pct": 49.17,
+        "sio2_pct": 11.84,
+        "al2o3_pct": 3.85,
+        "loi_pct": 10.82,
+        "rock_type": "Laterite",
+        "year": 2021
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          118.1969474791469,
+          -21.605295461441646
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0019",
+        "depth_m": 76,
+        "fe_pct": 43.82,
+        "sio2_pct": 11.07,
+        "al2o3_pct": 3.41,
+        "loi_pct": 3.38,
+        "rock_type": "Laterite",
+        "year": 2024
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          117.04556428072661,
+          -21.915610478825087
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0020",
+        "depth_m": 366,
+        "fe_pct": 55.26,
+        "sio2_pct": 11.34,
+        "al2o3_pct": 6.42,
+        "loi_pct": 6.59,
+        "rock_type": "Granite",
+        "year": 2024
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          116.84106156050338,
+          -22.901834798342062
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0021",
+        "depth_m": 194,
+        "fe_pct": 35.03,
+        "sio2_pct": 6.15,
+        "al2o3_pct": 6.99,
+        "loi_pct": 5.99,
+        "rock_type": "Shale",
+        "year": 2024
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          118.39587131023183,
+          -21.570115041072597
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0022",
+        "depth_m": 272,
+        "fe_pct": 31.72,
+        "sio2_pct": 4.7,
+        "al2o3_pct": 3.74,
+        "loi_pct": 11.07,
+        "rock_type": "Dolerite",
+        "year": 2021
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          118.31197382368424,
+          -21.745516820732945
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0023",
+        "depth_m": 101,
+        "fe_pct": 40.93,
+        "sio2_pct": 11.61,
+        "al2o3_pct": 5.18,
+        "loi_pct": 8.28,
+        "rock_type": "Dolerite",
+        "year": 2018
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          116.88427463064149,
+          -23.170364453110057
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0024",
+        "depth_m": 222,
+        "fe_pct": 20,
+        "sio2_pct": 7.47,
+        "al2o3_pct": 7.13,
+        "loi_pct": 11.22,
+        "rock_type": "Granite",
+        "year": 2018
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          118.45400032983302,
+          -23.09711848166165
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0025",
+        "depth_m": 208,
+        "fe_pct": 41.31,
+        "sio2_pct": 12.77,
+        "al2o3_pct": 1.4,
+        "loi_pct": 7.1,
+        "rock_type": "Dolerite",
+        "year": 2018
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          117.9465388850009,
+          -22.368514236785863
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0026",
+        "depth_m": 155,
+        "fe_pct": 28.22,
+        "sio2_pct": 13.66,
+        "al2o3_pct": 1.5,
+        "loi_pct": 4.29,
+        "rock_type": "Shale",
+        "year": 2023
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          116.89594260486409,
+          -21.551742685951385
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0027",
+        "depth_m": 113,
+        "fe_pct": 34.03,
+        "sio2_pct": 7.98,
+        "al2o3_pct": 5.52,
+        "loi_pct": 10.74,
+        "rock_type": "Granite",
+        "year": 2024
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          117.95929777111645,
+          -21.5866682158222
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0028",
+        "depth_m": 351,
+        "fe_pct": 54.85,
+        "sio2_pct": 10.68,
+        "al2o3_pct": 1.93,
+        "loi_pct": 4.27,
+        "rock_type": "Dolerite",
+        "year": 2018
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          117.11500265349116,
+          -22.930121004993687
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0029",
+        "depth_m": 235,
+        "fe_pct": 54.47,
+        "sio2_pct": 8.27,
+        "al2o3_pct": 3.57,
+        "loi_pct": 5.26,
+        "rock_type": "Granite",
+        "year": 2019
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          116.5230083706517,
+          -23.011452898832566
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0030",
+        "depth_m": 313,
+        "fe_pct": 42.9,
+        "sio2_pct": 13.08,
+        "al2o3_pct": 7.75,
+        "loi_pct": 3.74,
+        "rock_type": "BIF",
+        "year": 2018
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          117.50044839527979,
+          -22.911709858837032
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0031",
+        "depth_m": 357,
+        "fe_pct": 23.26,
+        "sio2_pct": 11.15,
+        "al2o3_pct": 1.16,
+        "loi_pct": 9.89,
+        "rock_type": "Granite",
+        "year": 2022
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          118.01487764473538,
+          -22.747313197521354
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0032",
+        "depth_m": 378,
+        "fe_pct": 36.35,
+        "sio2_pct": 2.65,
+        "al2o3_pct": 3.5,
+        "loi_pct": 6.14,
+        "rock_type": "Laterite",
+        "year": 2022
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          118.13099520945117,
+          -22.01355531418259
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0033",
+        "depth_m": 316,
+        "fe_pct": 68,
+        "sio2_pct": 14.02,
+        "al2o3_pct": 3.37,
+        "loi_pct": 4.38,
+        "rock_type": "Shale",
+        "year": 2018
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          118.12358059376511,
+          -22.18203417306842
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0034",
+        "depth_m": 367,
+        "fe_pct": 49.83,
+        "sio2_pct": 4.42,
+        "al2o3_pct": 1.62,
+        "loi_pct": 4.02,
+        "rock_type": "Dolerite",
+        "year": 2019
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          116.70347703166675,
+          -23.245671844412595
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0035",
+        "depth_m": 141,
+        "fe_pct": 47.54,
+        "sio2_pct": 3.25,
+        "al2o3_pct": 4.26,
+        "loi_pct": 2.43,
+        "rock_type": "Dolerite",
+        "year": 2020
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          117.74139371577945,
+          -23.318556703174167
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0036",
+        "depth_m": 341,
+        "fe_pct": 34.94,
+        "sio2_pct": 10.43,
+        "al2o3_pct": 7.76,
+        "loi_pct": 9.66,
+        "rock_type": "BIF",
+        "year": 2019
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          117.20984249760777,
+          -22.282819956074945
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0037",
+        "depth_m": 134,
+        "fe_pct": 60.66,
+        "sio2_pct": 11.61,
+        "al2o3_pct": 3.05,
+        "loi_pct": 8.51,
+        "rock_type": "Granite",
+        "year": 2022
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          117.01084139577542,
+          -22.669806945329572
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0038",
+        "depth_m": 343,
+        "fe_pct": 37.86,
+        "sio2_pct": 9.73,
+        "al2o3_pct": 3.52,
+        "loi_pct": 2.64,
+        "rock_type": "BIF",
+        "year": 2021
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          118.42654461665514,
+          -23.430387954034543
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0039",
+        "depth_m": 312,
+        "fe_pct": 38.5,
+        "sio2_pct": 3.12,
+        "al2o3_pct": 6.41,
+        "loi_pct": 9.22,
+        "rock_type": "Granite",
+        "year": 2024
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          117.92739531949087,
+          -23.465741803794852
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0040",
+        "depth_m": 282,
+        "fe_pct": 49.51,
+        "sio2_pct": 9.59,
+        "al2o3_pct": 5.29,
+        "loi_pct": 9.05,
+        "rock_type": "Shale",
+        "year": 2023
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          118.20897007213344,
+          -23.07741012071004
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0041",
+        "depth_m": 70,
+        "fe_pct": 20,
+        "sio2_pct": 6.02,
+        "al2o3_pct": 4.04,
+        "loi_pct": 10.97,
+        "rock_type": "Shale",
+        "year": 2019
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          117.9118771796614,
+          -23.194704165400868
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0042",
+        "depth_m": 351,
+        "fe_pct": 54.54,
+        "sio2_pct": 13.48,
+        "al2o3_pct": 3.23,
+        "loi_pct": 11.14,
+        "rock_type": "Laterite",
+        "year": 2019
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          118.44993306579195,
+          -23.395189723029418
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0043",
+        "depth_m": 237,
+        "fe_pct": 41.49,
+        "sio2_pct": 5.46,
+        "al2o3_pct": 1.2,
+        "loi_pct": 6.47,
+        "rock_type": "Dolerite",
+        "year": 2022
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          116.9976763681139,
+          -21.94600051296457
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0044",
+        "depth_m": 368,
+        "fe_pct": 36.7,
+        "sio2_pct": 5.01,
+        "al2o3_pct": 1.2,
+        "loi_pct": 7.19,
+        "rock_type": "Laterite",
+        "year": 2024
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          117.37748733149944,
+          -22.1695274009614
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0045",
+        "depth_m": 270,
+        "fe_pct": 38.13,
+        "sio2_pct": 4.16,
+        "al2o3_pct": 5.19,
+        "loi_pct": 11.02,
+        "rock_type": "Dolerite",
+        "year": 2019
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          118.3816764807367,
+          -22.663357508305776
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0046",
+        "depth_m": 384,
+        "fe_pct": 39.62,
+        "sio2_pct": 5.31,
+        "al2o3_pct": 5.57,
+        "loi_pct": 5.62,
+        "rock_type": "Laterite",
+        "year": 2018
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          118.3921213364189,
+          -22.492142408855077
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0047",
+        "depth_m": 388,
+        "fe_pct": 32.49,
+        "sio2_pct": 10.41,
+        "al2o3_pct": 4.41,
+        "loi_pct": 10.05,
+        "rock_type": "Shale",
+        "year": 2023
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          118.25325938182037,
+          -22.81369352127605
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0048",
+        "depth_m": 364,
+        "fe_pct": 50.41,
+        "sio2_pct": 13.19,
+        "al2o3_pct": 4.49,
+        "loi_pct": 9.72,
+        "rock_type": "Dolerite",
+        "year": 2022
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          117.56927347288796,
+          -22.80468142118787
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0049",
+        "depth_m": 86,
+        "fe_pct": 68,
+        "sio2_pct": 4.68,
+        "al2o3_pct": 2.68,
+        "loi_pct": 5.09,
+        "rock_type": "Shale",
+        "year": 2021
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          118.15819467001742,
+          -22.4104176721776
+        ]
+      },
+      "properties": {
+        "hole_id": "DDH-0050",
+        "depth_m": 207,
+        "fe_pct": 50.07,
+        "sio2_pct": 11.92,
+        "al2o3_pct": 1.6,
+        "loi_pct": 8.06,
+        "rock_type": "BIF",
+        "year": 2022
+      }
+    }
+  ]
+}

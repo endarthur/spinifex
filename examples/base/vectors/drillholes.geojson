@@ -1,0 +1,124 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "RB-001",
+        "depth_m": 145,
+        "pb_ppm": 2450,
+        "zn_ppm": 8200,
+        "target": "Carbonate-hosted"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -49.04,
+          -24.58
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "RB-002",
+        "depth_m": 92,
+        "pb_ppm": 890,
+        "zn_ppm": 3100,
+        "target": "Carbonate-hosted"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -49,
+          -24.6
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "RB-003",
+        "depth_m": 178,
+        "pb_ppm": 3200,
+        "zn_ppm": 12500,
+        "target": "Carbonate-hosted"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -49.06,
+          -24.56
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "RB-004",
+        "depth_m": 65,
+        "pb_ppm": 420,
+        "zn_ppm": 1800,
+        "target": "VMS"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -48.9,
+          -24.59
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "RB-005",
+        "depth_m": 112,
+        "pb_ppm": 1650,
+        "zn_ppm": 5400,
+        "target": "Carbonate-hosted"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -48.97,
+          -24.62
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "RB-006",
+        "depth_m": 88,
+        "pb_ppm": 280,
+        "zn_ppm": 950,
+        "target": "VMS"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -48.87,
+          -24.61
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "RB-007",
+        "depth_m": 135,
+        "pb_ppm": 1890,
+        "zn_ppm": 7800,
+        "target": "Carbonate-hosted"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -49.02,
+          -24.55
+        ]
+      }
+    }
+  ]
+}

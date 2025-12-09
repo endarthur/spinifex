@@ -3,6 +3,7 @@
 // Two style types: Rules (discrete) and Graduated (continuous)
 
 import { state, geologyColors, defaultColors } from './state.js';
+import { termPrint } from '../ui/terminal.js';
 
 // Preset color scales (chroma.js compatible)
 export const colorScales = {
@@ -89,7 +90,7 @@ function evaluateLabel(labelField, properties) {
       const fn = new Function('r', `return \`${labelField}\`;`);
       return fn(properties);
     } catch (e) {
-      console.warn('Invalid label template:', labelField);
+      // Invalid template expression
       return null;
     }
   }
@@ -211,7 +212,7 @@ function applyRulesStyle(layer, opts) {
       try {
         filterFn = new Function('r', `return ${rule.filter};`);
       } catch (e) {
-        console.warn(`Invalid filter expression: ${rule.filter}`);
+        termPrint(`Invalid filter expression: ${rule.filter}`, 'yellow');
         filterFn = () => false;
       }
     } else {
@@ -290,7 +291,7 @@ function applyGraduatedStyle(layer, opts) {
     try {
       valueFn = new Function('r', `return ${opts.expression};`);
     } catch (e) {
-      console.warn(`Invalid expression: ${opts.expression}`);
+      termPrint(`Invalid expression: ${opts.expression}`, 'yellow');
       valueFn = () => 0.5;
     }
   } else if (opts.field) {
@@ -365,7 +366,7 @@ function applyGraduatedStyle(layer, opts) {
  * Helper for UI to populate rules table
  */
 export function generateRulesFromField(layer, field, scale = 'default') {
-  if (!layer.geojson || !field) return [];
+  if (layer.type !== 'vector' || !field) return [];
 
   const uniqueValues = [...new Set(
     layer.geojson.features
@@ -433,7 +434,7 @@ export function applyStyle(layer, opts) {
  * Get unique values for a field
  */
 export function getUniqueValues(layer, field, limit = 50) {
-  if (!layer.geojson || !field) return [];
+  if (layer.type !== 'vector' || !field) return [];
   const values = [...new Set(layer.geojson.features.map(f => f.properties[field]))];
   return values.filter(v => v !== null && v !== undefined).slice(0, limit);
 }
@@ -442,7 +443,7 @@ export function getUniqueValues(layer, field, limit = 50) {
  * Get field statistics
  */
 export function getFieldStats(layer, field) {
-  if (!layer.geojson || !field) return null;
+  if (layer.type !== 'vector' || !field) return null;
   const values = layer.geojson.features
     .map(f => f.properties[field])
     .filter(v => typeof v === 'number' && isFinite(v));

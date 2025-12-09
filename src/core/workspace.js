@@ -2,7 +2,7 @@
 // File System Access API integration for persistent workspace
 
 import { state } from './state.js';
-import { getMap } from '../ui/map.js';
+import { getMap, getBasemapConfig, setBasemap } from '../ui/map.js';
 import { termPrint } from '../ui/terminal.js';
 import { VFSLite } from '../lib/xterm-kit/vfs-lite.js';
 import { setProjectDirHandle } from '../ui/drag-drop.js';
@@ -15,48 +15,134 @@ let vfs = null;
 // Check if File System Access API is available
 const hasFileSystemAccess = 'showDirectoryPicker' in window;
 
-// IndexedDB for storing file handle
+// IndexedDB for storing file handles (workspace history)
 const HANDLE_DB_NAME = 'spinifex-handles';
 const HANDLE_STORE_NAME = 'handles';
+const MAX_WORKSPACE_HISTORY = 10;
 
 /**
- * Store directory handle in IndexedDB for persistence
+ * Open IndexedDB database
  */
-async function storeHandle(handle) {
+function openHandleDB() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(HANDLE_DB_NAME, 1);
-    request.onupgradeneeded = () => {
-      request.result.createObjectStore(HANDLE_STORE_NAME);
-    };
-    request.onsuccess = () => {
+    const request = indexedDB.open(HANDLE_DB_NAME, 2);
+    request.onupgradeneeded = (event) => {
       const db = request.result;
-      const tx = db.transaction(HANDLE_STORE_NAME, 'readwrite');
-      tx.objectStore(HANDLE_STORE_NAME).put(handle, 'workspace');
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
+      if (!db.objectStoreNames.contains(HANDLE_STORE_NAME)) {
+        db.createObjectStore(HANDLE_STORE_NAME);
+      }
     };
+    request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
 }
 
 /**
- * Retrieve stored directory handle from IndexedDB
+ * Store directory handle in workspace history
+ */
+async function storeHandle(handle) {
+  const db = await openHandleDB();
+
+  return new Promise(async (resolve, reject) => {
+    const tx = db.transaction(HANDLE_STORE_NAME, 'readwrite');
+    const store = tx.objectStore(HANDLE_STORE_NAME);
+
+    // Get existing history
+    const getRequest = store.get('history');
+    getRequest.onsuccess = async () => {
+      let history = getRequest.result || [];
+
+      // Migrate from old format (single 'workspace' key)
+      if (!Array.isArray(history)) {
+        const oldHandle = await new Promise(r => {
+          const oldReq = store.get('workspace');
+          oldReq.onsuccess = () => r(oldReq.result);
+          oldReq.onerror = () => r(null);
+        });
+        history = oldHandle ? [{ handle: oldHandle, name: oldHandle.name, lastAccessed: Date.now() }] : [];
+      }
+
+      // Remove existing entry for same workspace (by name)
+      history = history.filter(entry => entry.name !== handle.name);
+
+      // Add new entry at the front
+      history.unshift({
+        handle,
+        name: handle.name,
+        lastAccessed: Date.now()
+      });
+
+      // Keep only MAX_WORKSPACE_HISTORY entries
+      history = history.slice(0, MAX_WORKSPACE_HISTORY);
+
+      // Save updated history
+      store.put(history, 'history');
+    };
+
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/**
+ * Get workspace history (all stored workspaces)
+ */
+async function getWorkspaceHistory() {
+  const db = await openHandleDB();
+
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(HANDLE_STORE_NAME, 'readonly');
+    const store = tx.objectStore(HANDLE_STORE_NAME);
+    const getRequest = store.get('history');
+
+    getRequest.onsuccess = async () => {
+      let history = getRequest.result;
+
+      // Handle migration from old format
+      if (!history || !Array.isArray(history)) {
+        const oldReq = store.get('workspace');
+        const oldHandle = await new Promise(r => {
+          const req = store.get('workspace');
+          req.onsuccess = () => r(req.result);
+          req.onerror = () => r(null);
+        });
+        history = oldHandle ? [{ handle: oldHandle, name: oldHandle.name, lastAccessed: Date.now() }] : [];
+      }
+
+      resolve(history);
+    };
+    getRequest.onerror = () => reject(getRequest.error);
+  });
+}
+
+/**
+ * Remove a workspace from history by name
+ */
+async function removeFromHistory(name) {
+  const db = await openHandleDB();
+
+  return new Promise(async (resolve, reject) => {
+    const tx = db.transaction(HANDLE_STORE_NAME, 'readwrite');
+    const store = tx.objectStore(HANDLE_STORE_NAME);
+
+    const getRequest = store.get('history');
+    getRequest.onsuccess = () => {
+      let history = getRequest.result || [];
+      history = history.filter(entry => entry.name !== name);
+      store.put(history, 'history');
+    };
+
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/**
+ * Retrieve the most recent stored directory handle from IndexedDB
  */
 async function getStoredHandle() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(HANDLE_DB_NAME, 1);
-    request.onupgradeneeded = () => {
-      request.result.createObjectStore(HANDLE_STORE_NAME);
-    };
-    request.onsuccess = () => {
-      const db = request.result;
-      const tx = db.transaction(HANDLE_STORE_NAME, 'readonly');
-      const getRequest = tx.objectStore(HANDLE_STORE_NAME).get('workspace');
-      getRequest.onsuccess = () => resolve(getRequest.result);
-      getRequest.onerror = () => reject(getRequest.error);
-    };
-    request.onerror = () => reject(request.error);
-  });
+  const history = await getWorkspaceHistory();
+  return history.length > 0 ? history[0].handle : null;
 }
 
 /**
@@ -229,6 +315,31 @@ async function readFile(path) {
     return await vfs.readFile(path);
   }
   throw new Error('No workspace connected');
+}
+
+/**
+ * Get a file handle from the workspace
+ * @param {string} path - File path relative to workspace root
+ * @returns {FileSystemFileHandle|null}
+ */
+async function getFileHandle(path) {
+  if (directoryHandle) {
+    try {
+      const parts = path.split('/').filter(p => p);
+      let handle = directoryHandle;
+
+      // Navigate to parent directories
+      for (let i = 0; i < parts.length - 1; i++) {
+        handle = await handle.getDirectoryHandle(parts[i]);
+      }
+
+      // Get file handle
+      return await handle.getFileHandle(parts[parts.length - 1]);
+    } catch (e) {
+      throw new Error(`Cannot get file handle: ${path}`);
+    }
+  }
+  throw new Error('No workspace connected or file system access not available');
 }
 
 /**
@@ -406,6 +517,43 @@ async function loadProjectConfig() {
         }
       }
 
+      // Clear existing basemaps before loading project basemaps
+      const { clearBasemaps } = await import('../ui/map.js');
+
+      // Set basemaps if specified (new format: array)
+      if (config.basemaps && Array.isArray(config.basemaps)) {
+        clearBasemaps();
+        for (const bm of config.basemaps) {
+          let layer = null;
+
+          // Prefer basemapKey for named basemaps (handles "stamen-terrain" style keys)
+          if (bm.basemapKey) {
+            layer = setBasemap(bm.basemapKey);
+          } else if (bm.url) {
+            // Custom basemap with URL
+            layer = setBasemap(bm.url, bm.attribution);
+          } else if (bm.name && bm.name !== 'none') {
+            // Fallback to name (for backwards compatibility)
+            layer = setBasemap(bm.name);
+          }
+
+          if (layer) {
+            if (bm.visible === false) layer.hide();
+            if (bm.opacity !== undefined) layer.opacity(bm.opacity);
+            if (bm.blendMode && bm.blendMode !== 'source-over') layer.blendMode(bm.blendMode);
+          }
+        }
+      }
+      // Legacy single basemap format
+      else if (config.basemap) {
+        clearBasemaps();
+        if (config.basemap.name === 'custom' && config.basemap.url) {
+          setBasemap(config.basemap.url, config.basemap.attribution);
+        } else if (config.basemap.name && config.basemap.name !== 'none') {
+          setBasemap(config.basemap.name);
+        }
+      }
+
       // Load layers
       if (config.layers) {
         const { loadFromContent } = await import('../formats/index.js');
@@ -428,22 +576,35 @@ async function loadProjectConfig() {
             // Determine format
             const format = layerConfig.format || getFormatFromPath(filePath);
 
-            // Read file content based on format
-            let fileContent;
-            if (format === 'geotiff' || format === 'xlsx' || format === 'shapefile') {
-              // Binary formats
-              fileContent = await readFileBuffer(filePath);
-            } else {
-              // Text formats
-              fileContent = await readFile(filePath);
-              if (!fileContent || fileContent.trim() === '') {
-                termPrint(`Empty file: ${layerConfig.name}`, 'yellow');
-                continue;
-              }
-            }
+            let layer;
 
-            // Load using format loader
-            const layer = await loadFromContent(fileContent, layerConfig.name, format);
+            // Special handling for SRTM (legacy format, needs metadata sidecar)
+            if (format === 'srtm') {
+              const { loadSRTMFromWorkspace } = await import('../data/srtm.js');
+              layer = await loadSRTMFromWorkspace(filePath, layerConfig.name);
+            } else if (format === 'cog') {
+              // COG files - use tiled loading for efficiency
+              const { loadCOGFromWorkspace } = await import('../formats/geotiff.js');
+              const fileHandle = await getFileHandle(filePath);
+              layer = await loadCOGFromWorkspace(fileHandle, layerConfig.name, layerConfig);
+            } else {
+              // Read file content based on format
+              let fileContent;
+              if (format === 'geotiff' || format === 'xlsx' || format === 'shapefile') {
+                // Binary formats
+                fileContent = await readFileBuffer(filePath);
+              } else {
+                // Text formats
+                fileContent = await readFile(filePath);
+                if (!fileContent || fileContent.trim() === '') {
+                  termPrint(`Empty file: ${layerConfig.name}`, 'yellow');
+                  continue;
+                }
+              }
+
+              // Load using format loader
+              layer = await loadFromContent(fileContent, layerConfig.name, format);
+            }
 
             if (layer) {
               // Set source reference
@@ -460,6 +621,9 @@ async function loadProjectConfig() {
               }
               if (layerConfig.zIndex !== undefined && layer.zIndex) {
                 layer.zIndex(layerConfig.zIndex);
+              }
+              if (layerConfig.blendMode && layerConfig.blendMode !== 'source-over' && layer.blendMode) {
+                layer.blendMode(layerConfig.blendMode);
               }
               loadedCount++;
             }
@@ -500,6 +664,8 @@ function getFormatFromPath(path) {
     case 'tif':
     case 'tiff':
       return 'geotiff';
+    case 'srtm':
+      return 'srtm';
     default:
       return 'geojson';
   }
@@ -524,6 +690,11 @@ async function save(name) {
   const unsavedLayers = [];
 
   for (const layer of state.layers.values()) {
+    // Skip basemap layers - they're saved separately
+    if (layer.isBasemap) {
+      continue;
+    }
+
     if (layer.sourcePath) {
       // Layer has a source file in project - just reference it
       const config = {
@@ -537,6 +708,33 @@ async function save(name) {
       // Save style if set
       if (layer._styleOpts) {
         config.style = layer._styleOpts;
+      }
+      // Save blend mode if not default
+      if (layer._blendMode && layer._blendMode !== 'source-over') {
+        config.blendMode = layer._blendMode;
+      }
+      // Save raster-specific properties
+      if (layer.width !== undefined) {
+        if (layer._metadata) {
+          config.nodata = layer._metadata.nodata;
+          config.min = layer._metadata.min;
+          config.max = layer._metadata.max;
+        }
+        if (layer._colorRamp) {
+          config.colorRamp = layer._colorRamp;
+        }
+        if (layer._mode) {
+          config.mode = layer._mode;
+        }
+        if (layer._selectedBand) {
+          config.selectedBand = layer._selectedBand;
+        }
+        if (layer._bandMapping) {
+          config.bandMapping = layer._bandMapping;
+        }
+        if (layer._bandStretch) {
+          config.bandStretch = layer._bandStretch;
+        }
       }
       layerConfigs.push(config);
     } else {
@@ -561,15 +759,69 @@ async function save(name) {
           if (layer._styleOpts) {
             config.style = layer._styleOpts;
           }
+          if (layer._blendMode && layer._blendMode !== 'source-over') {
+            config.blendMode = layer._blendMode;
+          }
           layerConfigs.push(config);
           termPrint(`Saved new layer: ${layer.name}`, 'dim');
         } catch (e) {
           termPrint(`Could not save layer: ${layer.name} - ${e.message}`, 'yellow');
         }
-      } else if (layer.width !== undefined) {
-        // Raster without source - can't save
-        termPrint(`Raster ${layer.name} has no source file - cannot save`, 'yellow');
+      } else if (layer.width !== undefined && layer._data) {
+        // Raster without source - save as COG
+        const sourcePath = `rasters/${layer.name}.tif`;
+        try {
+          termPrint(`Saving raster: ${layer.name}...`, 'dim');
+          const { toCOG } = await import('../raster/gdal.js');
+          const cogBlob = await toCOG(layer, { compress: 'DEFLATE' });
+          const cogBuffer = await cogBlob.arrayBuffer();
+          await writeFile(sourcePath, cogBuffer);
+          layer.setSource(sourcePath, 'cog');
+
+          const config = {
+            name: layer.name,
+            type: 'raster',
+            source: sourcePath,
+            format: 'cog',
+            visible: layer.visible,
+            zIndex: layer.zIndex ? layer.zIndex() : 0
+          };
+          // Save raster-specific properties
+          if (layer._metadata) {
+            config.nodata = layer._metadata.nodata;
+            config.min = layer._metadata.min;
+            config.max = layer._metadata.max;
+          }
+          if (layer._colorRamp) {
+            config.colorRamp = layer._colorRamp;
+          }
+          if (layer._mode) {
+            config.mode = layer._mode;
+          }
+          if (layer._selectedBand) {
+            config.selectedBand = layer._selectedBand;
+          }
+          if (layer._bandMapping) {
+            config.bandMapping = layer._bandMapping;
+          }
+          if (layer._bandStretch) {
+            config.bandStretch = layer._bandStretch;
+          }
+          layerConfigs.push(config);
+          termPrint(`Saved raster: ${layer.name}`, 'dim');
+        } catch (e) {
+          termPrint(`Could not save raster: ${layer.name} - ${e.message}`, 'yellow');
+          console.error(e);
+        }
       }
+    }
+  }
+
+  // Collect basemap configs
+  const basemapConfigs = [];
+  for (const layer of state.layers.values()) {
+    if (layer.isBasemap && layer.toJSON) {
+      basemapConfigs.push(layer.toJSON());
     }
   }
 
@@ -582,6 +834,7 @@ async function save(name) {
       center: center,
       zoom: view.getZoom()
     },
+    basemaps: basemapConfigs,  // Array of basemap configs
     layers: layerConfigs
   };
 
@@ -777,20 +1030,267 @@ async function importProject(file) {
   }
 }
 
+// ============================================
+// Shell-like file system commands
+// ============================================
+
+/**
+ * List directory contents (shell-style ls)
+ */
+async function ls(path = '') {
+  if (!directoryHandle && !vfs) {
+    termPrint('No workspace connected. Use ws.connect() first.', 'yellow');
+    return [];
+  }
+
+  const entries = await listDir(path);
+
+  if (entries.length === 0) {
+    termPrint(path ? `Empty directory: ${path}` : 'Empty workspace', 'dim');
+    return entries;
+  }
+
+  // Sort: directories first, then files, alphabetically
+  entries.sort((a, b) => {
+    if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  // Format output
+  const lines = entries.map(e => {
+    if (e.type === 'directory') {
+      return `\x1b[34m${e.name}/\x1b[0m`;  // Blue for directories
+    }
+    return e.name;
+  });
+
+  // Print in columns if terminal is wide enough
+  const maxLen = Math.max(...entries.map(e => e.name.length)) + 2;
+  const cols = Math.floor(60 / maxLen) || 1;
+
+  for (let i = 0; i < lines.length; i += cols) {
+    const row = lines.slice(i, i + cols);
+    term.writeln('  ' + row.map(s => s.padEnd(maxLen)).join(''));
+  }
+
+  return entries;
+}
+
+/**
+ * Print file contents (shell-style cat)
+ */
+async function cat(path) {
+  if (!directoryHandle && !vfs) {
+    termPrint('No workspace connected. Use ws.connect() first.', 'yellow');
+    return null;
+  }
+
+  try {
+    const content = await readFile(path);
+    termPrint(content);
+    return content;
+  } catch (e) {
+    termPrint(`cat: ${path}: No such file`, 'red');
+    return null;
+  }
+}
+
+/**
+ * Create directory (shell-style mkdir)
+ */
+async function mkdir(path) {
+  if (!directoryHandle && !vfs) {
+    termPrint('No workspace connected. Use ws.connect() first.', 'yellow');
+    return false;
+  }
+
+  try {
+    if (directoryHandle) {
+      const parts = path.split('/').filter(p => p);
+      let handle = directoryHandle;
+      for (const part of parts) {
+        handle = await handle.getDirectoryHandle(part, { create: true });
+      }
+    } else if (vfs) {
+      await vfs.mkdir(path.startsWith('/') ? path : '/' + path);
+    }
+    termPrint(`Created: ${path}`, 'green');
+    return true;
+  } catch (e) {
+    termPrint(`mkdir: cannot create '${path}': ${e.message}`, 'red');
+    return false;
+  }
+}
+
+/**
+ * Copy file (shell-style cp)
+ */
+async function cp(src, dest) {
+  if (!directoryHandle && !vfs) {
+    termPrint('No workspace connected. Use ws.connect() first.', 'yellow');
+    return false;
+  }
+
+  try {
+    const content = await readFile(src);
+    await writeFile(dest, content);
+    termPrint(`Copied: ${src} -> ${dest}`, 'green');
+    return true;
+  } catch (e) {
+    termPrint(`cp: cannot copy '${src}' to '${dest}': ${e.message}`, 'red');
+    return false;
+  }
+}
+
+/**
+ * Move/rename file (shell-style mv)
+ */
+async function mv(src, dest) {
+  if (!directoryHandle && !vfs) {
+    termPrint('No workspace connected. Use ws.connect() first.', 'yellow');
+    return false;
+  }
+
+  try {
+    const content = await readFile(src);
+    await writeFile(dest, content);
+    await rm(src, true);  // Silent delete
+    termPrint(`Moved: ${src} -> ${dest}`, 'green');
+    return true;
+  } catch (e) {
+    termPrint(`mv: cannot move '${src}' to '${dest}': ${e.message}`, 'red');
+    return false;
+  }
+}
+
+/**
+ * Remove file (shell-style rm)
+ */
+async function rm(path, silent = false) {
+  if (!directoryHandle && !vfs) {
+    if (!silent) termPrint('No workspace connected. Use ws.connect() first.', 'yellow');
+    return false;
+  }
+
+  try {
+    if (directoryHandle) {
+      const parts = path.split('/').filter(p => p);
+      let handle = directoryHandle;
+
+      // Navigate to parent directory
+      for (let i = 0; i < parts.length - 1; i++) {
+        handle = await handle.getDirectoryHandle(parts[i]);
+      }
+
+      // Remove the file or directory
+      const name = parts[parts.length - 1];
+      await handle.removeEntry(name, { recursive: true });
+    } else if (vfs) {
+      await vfs.unlink(path.startsWith('/') ? path : '/' + path);
+    }
+
+    if (!silent) termPrint(`Removed: ${path}`, 'green');
+    return true;
+  } catch (e) {
+    if (!silent) termPrint(`rm: cannot remove '${path}': ${e.message}`, 'red');
+    return false;
+  }
+}
+
+/**
+ * Print working directory (shell-style pwd)
+ */
+function pwd() {
+  if (!directoryHandle && !vfs) {
+    termPrint('No workspace connected', 'yellow');
+    return null;
+  }
+
+  const name = projectName || '(unnamed workspace)';
+  termPrint(name, 'cyan');
+  return name;
+}
+
+/**
+ * Get directory handle (for internal use and tab completion)
+ */
+export function getDirectoryHandle() {
+  return directoryHandle;
+}
+
+/**
+ * Connect to a workspace from history by name
+ */
+async function connectToWorkspace(name) {
+  const history = await getWorkspaceHistory();
+  const entry = history.find(e => e.name === name);
+
+  if (!entry) {
+    termPrint(`Workspace not found: ${name}`, 'red');
+    return false;
+  }
+
+  try {
+    const permission = await entry.handle.requestPermission({ mode: 'readwrite' });
+    if (permission !== 'granted') {
+      termPrint(`Permission denied for: ${name}`, 'red');
+      return false;
+    }
+
+    directoryHandle = entry.handle;
+    projectName = entry.name;
+    setProjectDirHandle(directoryHandle, writeFile);
+
+    // Update lastAccessed in history
+    await storeHandle(entry.handle);
+
+    termPrint(`Connected to workspace: ${projectName}`, 'green');
+
+    await runStartupScript();
+    await loadProjectConfig();
+
+    return true;
+  } catch (e) {
+    termPrint(`Error connecting: ${e.message}`, 'red');
+    return false;
+  }
+}
+
+/**
+ * Open recent workspaces window
+ */
+async function recent() {
+  const { openWorkspacesWindow } = await import('../ui/windows.js');
+  openWorkspacesWindow();
+}
+
 // Export workspace API
 export const workspace = {
   new: newProject,
   connect,
+  connectTo: connectToWorkspace,
   reconnect: tryReconnect,
+  recent,
   save,
   load,
   list,
   export: exportProject,
   import: importProject,
   readFile,
+  readFileBuffer,
   writeFile,
   exists,
   listDir,
+  getFileHandle,
+
+  // Shell-like commands
+  ls,
+  cat,
+  mkdir,
+  cp,
+  mv,
+  rm,
+  pwd,
 
   get connected() {
     return directoryHandle !== null || vfs !== null;
@@ -805,5 +1305,23 @@ export const workspace = {
   }
 };
 
+// Export history functions for windows.js
+export { getWorkspaceHistory, removeFromHistory, connectToWorkspace };
+
 // Shorthand alias
 export const ws = workspace;
+
+// File system namespace (same commands)
+export const fs = {
+  ls,
+  cat,
+  mkdir,
+  cp,
+  mv,
+  rm,
+  pwd,
+  read: readFile,
+  write: writeFile,
+  exists,
+  listDir
+};

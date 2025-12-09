@@ -32,17 +32,117 @@
 </head>
 <body>
   <header>
-    <div class="logo">
-      SPINIFEX
-      <span class="logo-sub">ultrabasic web gis</span>
+    <div class="header-left">
+      <div class="logo">
+        SPINIFEX
+        <span class="logo-sub">ultrabasic web gis</span>
+      </div>
+      <nav class="menu-bar">
+        <div class="menu-item">
+          <span class="menu-trigger">Project</span>
+          <div class="menu-dropdown">
+            <div class="menu-option" data-action="ws-new">New Project</div>
+            <div class="menu-option" data-action="ws-open">Open Project...</div>
+            <div class="menu-option" data-action="ws-recent">Recent Projects...</div>
+            <div class="menu-separator"></div>
+            <div class="menu-option" data-action="ws-save">Save</div>
+            <div class="menu-option" data-action="ws-versions">Version History...</div>
+            <div class="menu-separator"></div>
+            <div class="menu-option" data-action="ws-export">Export...</div>
+          </div>
+        </div>
+        <div class="menu-item">
+          <span class="menu-trigger">Edit</span>
+          <div class="menu-dropdown">
+            <div class="menu-option disabled" data-action="edit-undo">Undo</div>
+            <div class="menu-option disabled" data-action="edit-redo">Redo</div>
+          </div>
+        </div>
+        <div class="menu-item">
+          <span class="menu-trigger">Layer</span>
+          <div class="menu-dropdown">
+            <div class="menu-option" data-action="layer-add">Add Layer...</div>
+            <div class="menu-option" data-action="layer-sample">Load Sample Data</div>
+            <div class="menu-separator"></div>
+            <div class="menu-submenu">
+              <span class="menu-option submenu-trigger">Basemap</span>
+              <div class="submenu-dropdown">
+                <div class="menu-group-label">CartoDB</div>
+                <div class="menu-option" data-action="basemap-dark">Dark Matter</div>
+                <div class="menu-option" data-action="basemap-light">Positron</div>
+                <div class="menu-option" data-action="basemap-voyager">Voyager</div>
+                <div class="menu-separator"></div>
+                <div class="menu-group-label">OpenStreetMap</div>
+                <div class="menu-option" data-action="basemap-osm">OpenStreetMap</div>
+                <div class="menu-option" data-action="basemap-topo">OpenTopoMap</div>
+                <div class="menu-separator"></div>
+                <div class="menu-group-label">Stamen</div>
+                <div class="menu-option" data-action="basemap-stamen-toner">Toner</div>
+                <div class="menu-option" data-action="basemap-stamen-toner-lite">Toner Lite</div>
+                <div class="menu-option" data-action="basemap-stamen-terrain">Terrain</div>
+                <div class="menu-option" data-action="basemap-stamen-watercolor">Watercolor</div>
+                <div class="menu-separator"></div>
+                <div class="menu-group-label">ESRI</div>
+                <div class="menu-option" data-action="basemap-satellite">Satellite</div>
+                <div class="menu-option" data-action="basemap-esri-topo">World Topo</div>
+                <div class="menu-option" data-action="basemap-esri-street">World Street</div>
+                <div class="menu-separator"></div>
+                <div class="menu-option" data-action="basemap-custom">Custom URL...</div>
+                <div class="menu-separator"></div>
+                <div class="menu-option" data-action="basemap-clear">Clear All Basemaps</div>
+              </div>
+            </div>
+            <div class="menu-separator"></div>
+            <div class="menu-option" data-action="layer-clear">Clear All Layers</div>
+          </div>
+        </div>
+        <div class="menu-item">
+          <span class="menu-trigger">Vector</span>
+          <div class="menu-dropdown" data-menu="vector">
+            <div class="menu-option disabled">Loading...</div>
+          </div>
+        </div>
+        <div class="menu-item">
+          <span class="menu-trigger">Raster</span>
+          <div class="menu-dropdown" data-menu="raster">
+            <div class="menu-option disabled">Loading...</div>
+          </div>
+        </div>
+        <div class="menu-item">
+          <span class="menu-trigger">Tools</span>
+          <div class="menu-dropdown" data-menu="tools">
+            <div class="menu-option disabled">Loading...</div>
+          </div>
+        </div>
+        <div class="menu-item">
+          <span class="menu-trigger">View</span>
+          <div class="menu-dropdown">
+            <div class="menu-option" data-action="toggle-layers">Layers Panel</div>
+            <div class="menu-option" data-action="toggle-terminal">Terminal</div>
+            <div class="menu-option" data-action="toggle-legend">Legend</div>
+            <div class="menu-separator"></div>
+            <div class="menu-option" data-action="view-map">Map (2D)</div>
+            <div class="menu-option" data-action="view-3d">3D</div>
+          </div>
+        </div>
+        <div class="menu-item">
+          <span class="menu-trigger">Settings</span>
+          <div class="menu-dropdown">
+            <div class="menu-option" data-action="open-settings">Preferences...</div>
+          </div>
+        </div>
+        <div class="menu-item">
+          <span class="menu-trigger">Help</span>
+          <div class="menu-dropdown">
+            <div class="menu-option" data-action="show-help">API Reference</div>
+            <div class="menu-separator"></div>
+            <div class="menu-option" data-action="show-about">About Spinifex</div>
+          </div>
+        </div>
+      </nav>
     </div>
     <div class="header-right">
       <span class="workspace-name" id="workspace-name"></span>
-      <button class="header-btn" onclick="sp.windows.toggleLayers()" title="Toggle Layers panel">Layers</button>
-      <button class="header-btn" onclick="sp.windows.toggleLegend()" title="Toggle Legend">Legend</button>
-      <button class="header-btn" onclick="sp.windows.toggleTerminal()" title="Toggle Terminal">Terminal</button>
-      <button class="header-btn" onclick="sp.windows.openSettings()" title="Settings">Settings</button>
-      <button class="header-btn" onclick="runInTerminal('help()')" title="Help">?</button>
     </div>
   </header>
 
