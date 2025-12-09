@@ -978,13 +978,17 @@ function buildPanelContent(layer) {
     const { section: strokeSection, content: strokeContent } = createSection('Stroke');
     strokeContent.appendChild(createColorRow('Stroke Color', 'stroke', currentValues.stroke, handleChange));
     strokeContent.appendChild(createNumberRow('Width', 'width', currentValues.width, 0, 10, 0.5, handleChange));
-    strokeContent.appendChild(createSliderRow('Opacity', 'opacity', currentValues.opacity, 0, 1, 0.05, handleChange));
-    strokeContent.appendChild(createSelectRow('Blend Mode', 'blendMode', getBlendModeOptions(), currentValues.blendMode, handleChange));
 
     if (isPoint) {
       strokeContent.appendChild(createNumberRow('Radius', 'radius', currentValues.radius, 1, 50, 1, handleChange));
     }
     dynamicArea.appendChild(strokeSection);
+
+    // === Display Section ===
+    const { section: displaySection, content: displayContent } = createSection('Display');
+    displayContent.appendChild(createSliderRow('Opacity', 'opacity', currentValues.opacity, 0, 1, 0.05, handleChange));
+    displayContent.appendChild(createSelectRow('Blend Mode', 'blendMode', getBlendModeOptions(), currentValues.blendMode, handleChange));
+    dynamicArea.appendChild(displaySection);
 
     // === Labels Section ===
     if (hasFields) {
