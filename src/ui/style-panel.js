@@ -9,6 +9,7 @@ import {
   addColorRamp, listColorRamps, isCustomRamp, removeColorRamp,
   createRamp, parseColor, rgbToHex
 } from '../core/color-ramps.js';
+import { BLEND_MODES } from '../core/base-layer.js';
 
 let currentPanel = null;
 let currentLayer = null;
@@ -563,6 +564,16 @@ function getFieldOptions(layer) {
 }
 
 /**
+ * Get blend mode options
+ */
+function getBlendModeOptions() {
+  return BLEND_MODES.map(mode => ({
+    value: mode,
+    label: mode === 'source-over' ? 'Normal' : mode
+  }));
+}
+
+/**
  * Get numeric field options for graduated styling
  */
 function getNumericFieldOptions(layer) {
@@ -817,6 +828,7 @@ function buildPanelContent(layer) {
     stroke: existingStyle.stroke || '#000000',
     width: existingStyle.width || 1,
     opacity: existingStyle.opacity ?? 0.7,
+    blendMode: layer._blendMode || 'source-over',
     radius: existingStyle.radius || 6,
     field: existingStyle.field || '',
     palette: existingStyle.palette || 'default',
@@ -967,6 +979,7 @@ function buildPanelContent(layer) {
     strokeContent.appendChild(createColorRow('Stroke Color', 'stroke', currentValues.stroke, handleChange));
     strokeContent.appendChild(createNumberRow('Width', 'width', currentValues.width, 0, 10, 0.5, handleChange));
     strokeContent.appendChild(createSliderRow('Opacity', 'opacity', currentValues.opacity, 0, 1, 0.05, handleChange));
+    strokeContent.appendChild(createSelectRow('Blend Mode', 'blendMode', getBlendModeOptions(), currentValues.blendMode, handleChange));
 
     if (isPoint) {
       strokeContent.appendChild(createNumberRow('Radius', 'radius', currentValues.radius, 1, 50, 1, handleChange));
@@ -1053,6 +1066,11 @@ function applyCurrentStyle(layer) {
 
   // Apply style
   applyStyle(layer, styleOpts);
+
+  // Apply blend mode separately (not part of vector styling)
+  if (currentValues.blendMode && layer.blendMode) {
+    layer.blendMode(currentValues.blendMode);
+  }
 
   // Store style opts on layer for persistence
   layer._styleOpts = styleOpts;
@@ -1180,6 +1198,8 @@ function buildRasterPanelContent(layer) {
     blueBand: layer._bandMapping?.[2] || 3,
     min: layer.minValue,
     max: layer.maxValue,
+    opacity: layer.opacity?.() || 1,
+    blendMode: layer._blendMode || 'source-over',
   };
 
   const container = document.createElement('div');
@@ -1275,7 +1295,8 @@ function buildRasterPanelContent(layer) {
 
     // === Display Section ===
     const { section: displaySection, content: displayContent } = createSection('Display', true);
-    displayContent.appendChild(createSliderRow('Opacity', 'opacity', layer.opacity() || 1, 0, 1, 0.05, handleChange));
+    displayContent.appendChild(createSliderRow('Opacity', 'opacity', currentValues.opacity, 0, 1, 0.05, handleChange));
+    displayContent.appendChild(createSelectRow('Blend Mode', 'blendMode', getBlendModeOptions(), currentValues.blendMode, handleChange));
     dynamicArea.appendChild(displaySection);
   };
 
@@ -1344,6 +1365,11 @@ function applyRasterStyle(layer) {
   // Apply opacity
   if (currentValues.opacity !== undefined) {
     layer.opacity(currentValues.opacity);
+  }
+
+  // Apply blend mode
+  if (currentValues.blendMode && layer.blendMode) {
+    layer.blendMode(currentValues.blendMode);
   }
 
   termPrint(`Raster style applied to ${layer.name}`, 'green');
