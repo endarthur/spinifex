@@ -122,6 +122,16 @@ spinifex/
 2. Add styles in `styles/spinifex.css`
 3. Use CSS variables for theme compatibility
 
+## Git Workflow
+
+**Commit regularly** — Don't let changes accumulate. Commit after:
+- Completing a feature or fix
+- Getting tests passing after changes
+- Before switching to a different task
+- At natural stopping points in longer work sessions
+
+Small, frequent commits are better than one massive commit with 44k+ lines.
+
 ## Documentation Sync
 
 **help.js is the source of truth** for API documentation. When updating:
