@@ -441,8 +441,8 @@ function promptCustomBasemap() {
         style="width: 100%; padding: 6px 8px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text); font-family: inherit; font-size: 12px;">
     </label>
     <div style="display: flex; gap: 8px; justify-content: flex-end;">
-      <button id="custom-basemap-cancel" class="dialog-btn">Cancel</button>
-      <button id="custom-basemap-apply" class="dialog-btn primary">Apply</button>
+      <button id="custom-basemap-cancel" class="btn">Cancel</button>
+      <button id="custom-basemap-apply" class="btn btn-primary">Apply</button>
     </div>
   `;
 

@@ -349,20 +349,34 @@ test.describe('Raster Style Panel', () => {
     test('blend mode selector exists', async ({ page }) => {
       const result = await page.evaluate(async () => {
         const raster = window.sampleRaster({ name: 'blend_test' });
-        await new Promise(r => setTimeout(r, 100));
+        await new Promise(r => setTimeout(r, 150));
         raster.style();
-        await new Promise(r => setTimeout(r, 200));
+        await new Promise(r => setTimeout(r, 300));
 
         const panel = document.querySelector('.raster-style-panel');
-        // Blend select is in a form-row labeled "Blend"
-        const formRows = panel?.querySelectorAll('.sp-form-row');
+        // Blend select is in a widget with label "Blend Mode"
+        // Widget system uses .sp-widget with label element, or .sp-form-row with .sp-form-row-label
         let blendSelect = null;
-        formRows?.forEach(row => {
-          const label = row.querySelector('.sp-form-row-label');
+
+        // Try widget system structure first
+        const widgets = panel?.querySelectorAll('.sp-widget');
+        widgets?.forEach(widget => {
+          const label = widget.querySelector('label');
           if (label?.textContent?.includes('Blend')) {
-            blendSelect = row.querySelector('select');
+            blendSelect = widget.querySelector('select');
           }
         });
+
+        // Fallback to form-row structure
+        if (!blendSelect) {
+          const formRows = panel?.querySelectorAll('.sp-form-row');
+          formRows?.forEach(row => {
+            const label = row.querySelector('.sp-form-row-label');
+            if (label?.textContent?.includes('Blend')) {
+              blendSelect = row.querySelector('select');
+            }
+          });
+        }
 
         const options = Array.from(blendSelect?.options || []).map(o => o.value);
 

@@ -383,12 +383,18 @@ function astToOLExpr(ast) {
         case 'clamp': return ['clamp', args[0], args[1], args[2]];
 
         // Raster-specific
-        case 'ndvi':
+        case 'ndvi': {
           // NDVI with default bands (NIR=b4, Red=b3)
-          return ['/',
-            ['-', ['band', args[0] || 4], ['band', args[1] || 3]],
-            ['+', ['band', args[0] || 4], ['band', args[1] || 3]]
+          // Includes division-by-zero guard: returns 0 if denominator is 0
+          const nir = ['band', args[0] || 4];
+          const red = ['band', args[1] || 3];
+          const diff = ['-', nir, red];
+          const sum = ['+', nir, red];
+          return ['case',
+            ['==', sum, 0], 0,  // Guard: return 0 if NIR+Red=0
+            ['/', diff, sum]
           ];
+        }
 
         default:
           throw new Error(`Unknown function: ${ast.name}`);

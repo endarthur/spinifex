@@ -13,6 +13,8 @@
   --bg-dark: #1a1a1a;
   --bg-panel: #252525;
   --bg-input: #3c3c3c;
+  --bg-light: #333333;
+  --bg-lighter: #404040;
 
   /* Borders */
   --border: #3a3a3a;
@@ -24,11 +26,13 @@
   /* Accents */
   --accent: #4a9eff;
   --accent-dim: #2d5a8a;
+  --accent-hover: #5aacff;
 
   /* Status colors */
   --green: #4ec990;
   --yellow: #e5c07b;
   --red: #e06c75;
+  --error: #e06c75;
 }
 
 body {
@@ -1026,33 +1030,6 @@ main {
   border-color: #5aacff;
 }
 
-/* Dialog buttons (same as .btn) */
-.dialog-btn {
-  padding: 6px 14px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--bg-dark);
-  color: var(--text);
-  font-family: inherit;
-  font-size: 12px;
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-}
-
-.dialog-btn:hover {
-  border-color: var(--accent-dim);
-}
-
-.dialog-btn.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #000;
-}
-
-.dialog-btn.primary:hover {
-  background: #5aacff;
-  border-color: #5aacff;
-}
 
 /* Saved basemap items in custom basemap dialog */
 .saved-basemap-item:hover {

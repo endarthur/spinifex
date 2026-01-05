@@ -31,7 +31,7 @@ import {
   convert, downloadVector, tri, tpi, roughness
 } from '../raster/gdal.js';
 import { calc, rasterOps, parseExpression } from '../raster/algebra.js';
-import { idw, idwToBand } from '../raster/interpolation.js';
+import { idw, idwToBand, rbf } from '../raster/interpolation.js';
 import { sampleRaster, generateSampleRaster } from './sample-raster.js';
 import { RasterData } from './raster-data.js';
 import { rc } from './settings.js';
@@ -48,6 +48,7 @@ import {
   createRamp, reverseRamp, interpolateColor, generatePalette, generatePaletteHex,
   parseColor, rgbToHex, colorScales, exportCustomRamps, importCustomRamps
 } from './color-ramps.js';
+import { crs, epsg } from './crs.js';
 
 // === Layer namespace ===
 // All layers are accessible via ly["name"] or ly.name (if valid identifier)
@@ -380,6 +381,7 @@ export const sp = {
   // Interpolation
   idw,
   idwToBand,
+  rbf,
 
   // Export (pure JS)
   downloadShapefile,
@@ -410,6 +412,10 @@ export const sp = {
   createRamp,
   listColorRamps,
 
+  // CRS / Coordinate Reference Systems
+  crs,    // crs.search(), crs.get(), crs.suggest(), crs.guess()
+  epsg,   // epsg("search") or epsg(4326)
+
   // Map
   basemap: setBasemap,
   basemaps: listBasemaps,
@@ -436,20 +442,6 @@ export const sp = {
   distance,
   area,
   bearing,
-
-  // CRS
-  crs: {
-    set: (code) => {
-      state.crs = code;
-      document.getElementById('status-crs').textContent = code;
-      termPrint(`CRS set to ${code}`, 'green');
-    },
-    get: () => state.crs,
-    transform: (layer, targetCrs) => {
-      termPrint('CRS transform not yet implemented', 'yellow');
-      return layer;
-    }
-  },
 
   // Runtime configuration (like matplotlib's rcParams)
   rc,
@@ -716,10 +708,10 @@ function executeJS(code) {
           return (async () => { ${code} })();
         `);
         fn(...Object.values(context)).catch(e2 => {
-          termPrint(`Error: ${e.message}`, 'red');
+          termPrint(`Error: ${e2.message}`, 'red');
         });
       } catch (e2) {
-        termPrint(`Error: ${e.message}`, 'red');
+        termPrint(`Error: ${e2.message}`, 'red');
       }
     }
   } else {
@@ -740,7 +732,7 @@ function executeJS(code) {
         `);
         fn(...Object.values(context));
       } catch (e2) {
-        termPrint(`Error: ${e.message}`, 'red');
+        termPrint(`Error: ${e2.message}`, 'red');
       }
     }
   }
@@ -821,6 +813,7 @@ window.ratio = rasterOps.ratio;
 window.threshold = rasterOps.threshold;
 window.idw = idw;
 window.idwToBand = idwToBand;
+window.rbf = rbf;
 window.sample = sample;
 window.measure = measure;
 window.distance = distance;
@@ -837,6 +830,8 @@ window.ly = ly;  // Layer namespace
 window.rc = rc;  // Runtime configuration
 window.versioning = versioning;  // Version control
 window.v = v;  // Version control shorthand
+window.crs = crs;  // CRS registry
+window.epsg = epsg;  // EPSG search function
 
 // Interactive map input
 window.box = box;
@@ -1342,6 +1337,37 @@ toolbox.register({
       resolution: params.resolution,
       searchRadius: params.searchRadius > 0 ? params.searchRadius : Infinity,
       maxPoints: params.maxPoints > 0 ? params.maxPoints : Infinity,
+      name: params.outputName || undefined,
+    });
+  },
+});
+
+toolbox.register({
+  id: 'interpolation.rbf',
+  name: 'RBF Interpolation',
+  description: 'Create a smooth continuous surface from point data using Radial Basis Functions',
+  category: 'Interpolation',
+  tags: ['interpolation', 'rbf', 'surface', 'points', 'raster', 'smooth'],
+  parameters: [
+    { name: 'layer', type: 'layer', required: true, description: 'Input point layer' },
+    { name: 'field', type: 'string', required: true, description: 'Attribute field to interpolate' },
+    { name: 'kernel', type: 'select', default: 'gaussian', options: [
+      { value: 'gaussian', label: 'Gaussian (smooth, local)' },
+      { value: 'multiquadric', label: 'Multiquadric (smooth, global)' },
+      { value: 'inverse_multiquadric', label: 'Inverse Multiquadric (smooth, local)' },
+      { value: 'thin_plate', label: 'Thin Plate Spline (smooth surface)' },
+      { value: 'linear', label: 'Linear (piecewise)' },
+    ], description: 'Kernel function type' },
+    { name: 'resolution', type: 'integer', default: 100, min: 10, max: 500, description: 'Output raster width in pixels' },
+    { name: 'smooth', type: 'number', default: 0, min: 0, max: 10, description: 'Smoothing factor (0 = exact interpolation)' },
+    { name: 'outputName', type: 'string', default: '', description: 'Output layer name' },
+  ],
+  execute: async (params, context) => {
+    return rbf(params.layer, {
+      field: params.field,
+      kernel: params.kernel,
+      resolution: params.resolution,
+      smooth: params.smooth,
       name: params.outputName || undefined,
     });
   },

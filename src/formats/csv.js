@@ -104,9 +104,19 @@ function detectCoordinateColumns(headers) {
   let xCol = null;
   let yCol = null;
 
+  // Match function: exact match, starts with pattern, or pattern followed by underscore/number
+  const matchesPattern = (header, pattern) => {
+    if (header === pattern) return true;
+    if (header.startsWith(pattern + '_')) return true;
+    if (header.startsWith(pattern) && /^[0-9]/.test(header.slice(pattern.length))) return true;
+    // Only match if pattern is the full word (e.g., "longitude" matches "lon" but not "colony")
+    if (pattern.length >= 3 && header.startsWith(pattern)) return true;
+    return false;
+  };
+
   // Find X column
   for (const pattern of COORD_PATTERNS.x) {
-    const idx = lowerHeaders.findIndex(h => h === pattern || h.includes(pattern));
+    const idx = lowerHeaders.findIndex(h => matchesPattern(h, pattern));
     if (idx !== -1) {
       xCol = headers[idx];
       break;
@@ -115,7 +125,7 @@ function detectCoordinateColumns(headers) {
 
   // Find Y column
   for (const pattern of COORD_PATTERNS.y) {
-    const idx = lowerHeaders.findIndex(h => h === pattern || h.includes(pattern));
+    const idx = lowerHeaders.findIndex(h => matchesPattern(h, pattern));
     if (idx !== -1) {
       yCol = headers[idx];
       break;

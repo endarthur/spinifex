@@ -43,15 +43,23 @@ export function intersect(layer1, layer2, opts = {}) {
   }
 
   const results = [];
+  let skipped = 0;
   for (const f1 of layer1.features) {
     for (const f2 of layer2.features) {
       try {
         const inter = turf.intersect(turf.featureCollection([f1, f2]));
         if (inter) results.push(inter);
       } catch (e) {
-        // Skip invalid geometries
+        skipped++;
       }
     }
+  }
+
+  if (skipped > 0) {
+    termPrint(`Skipped ${skipped} invalid geometry pairs`, 'yellow');
+  }
+  if (results.length === 0) {
+    termPrint('No intersections found', 'yellow');
   }
 
   return loadGeoJSON(
@@ -78,6 +86,7 @@ export function union(layer1, layer2, opts = {}) {
   try {
     result = turf.dissolve(combined);
   } catch {
+    termPrint('Dissolve failed, returning undissolved features', 'yellow');
     result = combined;
   }
 
