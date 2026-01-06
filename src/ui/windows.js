@@ -396,6 +396,15 @@ function createInfoPanel(layer) {
   const panel = document.createElement('div');
   const isRaster = layer.type === 'raster';
 
+  // Get CRS info
+  let layerCrs = 'EPSG:4326'; // Default for vector
+  if (isRaster) {
+    layerCrs = layer.crs || layer._metadata?.crs || 'EPSG:4326';
+  }
+  // Look up CRS name if available
+  const crsInfo = window.crs?.get(layerCrs);
+  const crsDisplay = crsInfo ? `${layerCrs} (${crsInfo.name})` : layerCrs;
+
   let html = `
     <div class="props-section">
       <div class="props-row">
@@ -405,6 +414,10 @@ function createInfoPanel(layer) {
       <div class="props-row">
         <span class="props-label">Type</span>
         <span class="props-value">${isRaster ? 'Raster' : 'Vector'}</span>
+      </div>
+      <div class="props-row">
+        <span class="props-label">CRS</span>
+        <span class="props-value props-value-small">${crsDisplay}</span>
       </div>
   `;
 
@@ -2001,6 +2014,9 @@ export function updateLegendContent() {
     if (opts.type === 'graduated') {
       // Graduated: show color ramp
       html += renderGraduatedLegend(layer, opts);
+    } else if (opts.type === 'categorical') {
+      // Categorical: generate rules from field and show as legend items
+      html += renderCategoricalLegend(layer, opts);
     } else if (opts.rules && opts.rules.length > 0) {
       // Rules: show each rule with color + label
       html += renderRulesLegend(opts);
@@ -2038,6 +2054,34 @@ function renderRulesLegend(opts) {
       </div>
     `;
   }
+
+  html += '</div>';
+  return html;
+}
+
+/**
+ * Render legend for categorical style
+ */
+function renderCategoricalLegend(layer, opts) {
+  // Generate the rules from field and palette (same as styling does)
+  const rules = generateRulesFromField(layer, opts.field, opts.palette || 'default');
+
+  if (!rules || rules.length === 0) {
+    return '<div class="legend-empty">No categories</div>';
+  }
+
+  let html = '<div class="legend-items">';
+
+  rules.forEach(rule => {
+    const label = rule.label || 'Unknown';
+    const color = rule.fill || '#888888';
+    html += `
+      <div class="legend-item">
+        <span class="legend-swatch" style="background: ${color}"></span>
+        <span class="legend-label">${label}</span>
+      </div>
+    `;
+  });
 
   html += '</div>';
   return html;

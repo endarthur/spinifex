@@ -5,7 +5,7 @@ import { state } from '../core/state.js';
 import { termPrint } from './terminal.js';
 import { colorScales, getUniqueValues, getFieldStats } from '../core/styling.js';
 import { openLayerProperties, openAttributeTable } from './windows.js';
-import { openStylePanel, openRasterStylePanel } from './style-panel.js';
+import { openStylePanel, openRasterStylePanel, copyStyle, pasteStyle, canPasteStyle } from './style-panel.js';
 
 let currentContextMenu = null;
 let currentModal = null;
@@ -629,6 +629,10 @@ export function showLayerContextMenu(e, layer) {
         openLayerProperties(layer, 'style');
       }
     }});
+    items.push({ label: 'Copy Style', action: () => copyStyle(layer) });
+    if (canPasteStyle(layer)) {
+      items.push({ label: 'Paste Style', action: () => pasteStyle(layer) });
+    }
   }
 
   items.push({ separator: true });

@@ -122,25 +122,24 @@
 
 ### Medium Term
 
-#### Raster Styling UI (In Progress)
+#### Raster Styling UI (Complete)
 - [x] Styling panel for rasters (layer properties Style tab)
 - [x] Band selector (RGB composite)
 - [x] Color ramp picker with preview
 - [x] Stretch controls (min/max sliders)
-- [ ] Migrate raster style panel to widget system
-- [ ] Expression builder UI
+- [x] Migrate raster style panel to widget system
+- [x] Expression builder UI
 
-#### Raster Creation & Interpolation
-- [ ] Create raster from points
-- [ ] IDW (Inverse Distance Weighting) — `idw(points, field, {cellSize, power})`
-- [ ] RBF (Radial Basis Functions) — `rbf(points, field, {cellSize, kernel})`
-- [ ] Terrain analysis: hillshade, slope, aspect
+#### Raster Creation & Interpolation (Complete)
+- [x] IDW (Inverse Distance Weighting) — `idw(points, field, {cellSize, power})`
+- [x] Terrain analysis: hillshade, slope, aspect (via `sp.gdal`)
+- [x] RBF (Radial Basis Functions) — `rbf(points, field, {kernel, resolution})`
 
 #### CRS Improvements
-- [ ] Searchable EPSG codes
-- [ ] CRS suggestions based on data location
-- [ ] Layer CRS status indicators
-- [ ] `sp.crs.guess(layer)` helper
+- [x] Searchable EPSG codes — `crs.search()`, `epsg()` terminal command
+- [x] CRS suggestions based on data location — `crs.suggest(extent)`
+- [x] Layer CRS status indicators — Shown in layer properties Info tab
+- [x] `sp.crs.guess(layer)` helper
 - [ ] On-the-fly reprojection UI
 
 #### Export

@@ -431,4 +431,287 @@ export function idwToBand(rasterLayer, pointLayer, options = {}) {
   return rasterLayer;
 }
 
+/**
+ * Radial Basis Function (RBF) Interpolation
+ *
+ * Creates a continuous raster surface from scattered point data using
+ * radial basis functions. RBF interpolation produces smoother surfaces
+ * than IDW and can extrapolate beyond the convex hull of input points.
+ *
+ * @param {Object} layer - Vector layer with point features
+ * @param {Object} options - RBF parameters
+ * @param {string} options.field - Property field containing values to interpolate (required)
+ * @param {string} [options.kernel='gaussian'] - Kernel function: 'gaussian', 'multiquadric', 'inverse_multiquadric', 'thin_plate', 'linear'
+ * @param {number} [options.epsilon] - Shape parameter (auto-calculated if not specified)
+ * @param {number} [options.resolution=100] - Output raster width in pixels
+ * @param {number[]} [options.extent] - Output extent [minX, minY, maxX, maxY]
+ * @param {number} [options.smooth=0] - Smoothing factor (0 = exact interpolation)
+ * @param {number} [options.nodata=-9999] - NoData value
+ * @param {string} [options.name] - Output layer name
+ * @returns {Object} Raster layer with interpolated values
+ */
+export function rbf(layer, options = {}) {
+  // Validate inputs
+  if (!layer || !layer.geojson) {
+    throw new Error('RBF requires a vector layer with point data');
+  }
+
+  const field = options.field;
+  if (!field) {
+    throw new Error('RBF requires a "field" option specifying which property to interpolate');
+  }
+
+  // Extract point data (reuse helper from IDW)
+  const points = extractPoints(layer.geojson, field);
+
+  if (points.length < 3) {
+    throw new Error(`RBF requires at least 3 points with valid "${field}" values, found ${points.length}`);
+  }
+
+  termPrint(`RBF interpolation: ${points.length} points, field="${field}"`, 'dim');
+
+  // Parameters
+  const kernel = options.kernel || 'gaussian';
+  const resolution = options.resolution ?? 100;
+  const smooth = options.smooth ?? 0;
+  const nodata = options.nodata ?? -9999;
+  const name = options.name || `${layer.name || 'rbf'}_interpolated`;
+
+  // Calculate extent (with buffer if not specified)
+  const extent = options.extent || calculateExtent(points, 0.1);
+  const [minX, minY, maxX, maxY] = extent;
+
+  // Calculate grid dimensions
+  const aspectRatio = (maxY - minY) / (maxX - minX);
+  const width = resolution;
+  const height = Math.max(1, Math.round(resolution * aspectRatio));
+
+  // Cell dimensions
+  const cellWidth = (maxX - minX) / width;
+  const cellHeight = (maxY - minY) / height;
+
+  termPrint(`  Kernel: ${kernel}, Grid: ${width}x${height}`, 'dim');
+
+  // Auto-calculate epsilon (shape parameter) based on average point spacing
+  let epsilon = options.epsilon;
+  if (!epsilon) {
+    epsilon = calculateAutoEpsilon(points);
+    termPrint(`  Auto epsilon: ${epsilon.toFixed(4)}`, 'dim');
+  }
+
+  // Get kernel function
+  const kernelFn = getKernelFunction(kernel);
+
+  // Build distance matrix and solve for weights
+  const n = points.length;
+  const distMatrix = new Float64Array(n * n);
+  const values = new Float64Array(n);
+
+  for (let i = 0; i < n; i++) {
+    values[i] = points[i].value;
+    for (let j = 0; j < n; j++) {
+      const dx = points[i].x - points[j].x;
+      const dy = points[i].y - points[j].y;
+      const r = Math.sqrt(dx * dx + dy * dy);
+      distMatrix[i * n + j] = kernelFn(r, epsilon);
+    }
+    // Add smoothing to diagonal
+    distMatrix[i * n + i] += smooth;
+  }
+
+  // Solve linear system for weights using Gaussian elimination
+  const weights = solveLinearSystem(distMatrix, values, n);
+
+  if (!weights) {
+    throw new Error('RBF: Failed to solve linear system (matrix may be singular)');
+  }
+
+  // Perform interpolation
+  const pixelCount = width * height;
+  const output = new Float32Array(pixelCount);
+
+  let validCount = 0;
+  let minVal = Infinity;
+  let maxVal = -Infinity;
+
+  for (let row = 0; row < height; row++) {
+    for (let col = 0; col < width; col++) {
+      const idx = row * width + col;
+
+      // Cell center coordinates
+      const cellX = minX + (col + 0.5) * cellWidth;
+      const cellY = maxY - (row + 0.5) * cellHeight;
+
+      // Calculate RBF value
+      let value = 0;
+      for (let i = 0; i < n; i++) {
+        const dx = cellX - points[i].x;
+        const dy = cellY - points[i].y;
+        const r = Math.sqrt(dx * dx + dy * dy);
+        value += weights[i] * kernelFn(r, epsilon);
+      }
+
+      output[idx] = value;
+      validCount++;
+
+      if (value < minVal) minVal = value;
+      if (value > maxVal) maxVal = value;
+    }
+  }
+
+  termPrint(`  Interpolated ${validCount} cells, range: ${minVal.toFixed(2)} - ${maxVal.toFixed(2)}`, 'dim');
+
+  // Create raster layer
+  const metadata = {
+    width,
+    height,
+    extent,
+    bandCount: 1,
+    bandStats: {
+      band1: { min: minVal, max: maxVal }
+    },
+    min: minVal,
+    max: maxVal,
+    nodata,
+    description: `RBF interpolation of "${field}" (kernel=${kernel}, epsilon=${epsilon.toFixed(4)})`
+  };
+
+  const rasterLayer = createWebGLRasterLayer([output], metadata, name, {
+    mode: RENDER_MODES.SINGLEBAND,
+    nodata
+  });
+
+  // Set sensible defaults for visualization
+  rasterLayer.r.colorRamp('viridis');
+  rasterLayer.r.stretch(minVal, maxVal);
+
+  termPrint(`Created: ${name}`, 'green');
+
+  rasterLayer.zoom();
+
+  return rasterLayer;
+}
+
+/**
+ * Get kernel function by name
+ */
+function getKernelFunction(kernel) {
+  const kernels = {
+    // Gaussian: e^(-(r/ε)²) - smooth, localized influence
+    gaussian: (r, epsilon) => Math.exp(-(r * r) / (epsilon * epsilon)),
+
+    // Multiquadric: sqrt(1 + (r/ε)²) - smooth, global influence
+    multiquadric: (r, epsilon) => Math.sqrt(1 + (r * r) / (epsilon * epsilon)),
+
+    // Inverse Multiquadric: 1/sqrt(1 + (r/ε)²) - smooth, localized
+    inverse_multiquadric: (r, epsilon) => 1 / Math.sqrt(1 + (r * r) / (epsilon * epsilon)),
+
+    // Thin Plate Spline: r²·ln(r) - smooth, good for surfaces
+    thin_plate: (r, epsilon) => {
+      if (r < 1e-10) return 0;
+      const re = r / epsilon;
+      return re * re * Math.log(re + 1e-10);
+    },
+
+    // Linear: r - simple, piecewise linear
+    linear: (r, epsilon) => r / epsilon,
+  };
+
+  const fn = kernels[kernel.toLowerCase()];
+  if (!fn) {
+    const available = Object.keys(kernels).join(', ');
+    throw new Error(`Unknown kernel "${kernel}". Available: ${available}`);
+  }
+  return fn;
+}
+
+/**
+ * Calculate automatic epsilon based on average nearest-neighbor distance
+ */
+function calculateAutoEpsilon(points) {
+  const n = points.length;
+  if (n < 2) return 1;
+
+  // For each point, find distance to nearest neighbor
+  let sumMinDist = 0;
+  for (let i = 0; i < n; i++) {
+    let minDist = Infinity;
+    for (let j = 0; j < n; j++) {
+      if (i === j) continue;
+      const dx = points[i].x - points[j].x;
+      const dy = points[i].y - points[j].y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < minDist) minDist = dist;
+    }
+    sumMinDist += minDist;
+  }
+
+  // Use average nearest-neighbor distance as epsilon
+  // Multiply by factor to ensure smooth interpolation
+  return (sumMinDist / n) * 1.5;
+}
+
+/**
+ * Solve linear system Ax = b using Gaussian elimination with partial pivoting
+ * Returns null if matrix is singular
+ */
+function solveLinearSystem(A, b, n) {
+  // Create augmented matrix [A|b]
+  const augmented = new Float64Array((n + 1) * n);
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      augmented[i * (n + 1) + j] = A[i * n + j];
+    }
+    augmented[i * (n + 1) + n] = b[i];
+  }
+
+  // Forward elimination with partial pivoting
+  for (let k = 0; k < n; k++) {
+    // Find pivot
+    let maxVal = Math.abs(augmented[k * (n + 1) + k]);
+    let maxRow = k;
+    for (let i = k + 1; i < n; i++) {
+      const val = Math.abs(augmented[i * (n + 1) + k]);
+      if (val > maxVal) {
+        maxVal = val;
+        maxRow = i;
+      }
+    }
+
+    // Check for singular matrix
+    if (maxVal < 1e-12) {
+      return null;
+    }
+
+    // Swap rows
+    if (maxRow !== k) {
+      for (let j = k; j <= n; j++) {
+        const temp = augmented[k * (n + 1) + j];
+        augmented[k * (n + 1) + j] = augmented[maxRow * (n + 1) + j];
+        augmented[maxRow * (n + 1) + j] = temp;
+      }
+    }
+
+    // Eliminate column
+    for (let i = k + 1; i < n; i++) {
+      const factor = augmented[i * (n + 1) + k] / augmented[k * (n + 1) + k];
+      for (let j = k; j <= n; j++) {
+        augmented[i * (n + 1) + j] -= factor * augmented[k * (n + 1) + j];
+      }
+    }
+  }
+
+  // Back substitution
+  const x = new Float64Array(n);
+  for (let i = n - 1; i >= 0; i--) {
+    let sum = augmented[i * (n + 1) + n];
+    for (let j = i + 1; j < n; j++) {
+      sum -= augmented[i * (n + 1) + j] * x[j];
+    }
+    x[i] = sum / augmented[i * (n + 1) + i];
+  }
+
+  return x;
+}
+
 export default idw;

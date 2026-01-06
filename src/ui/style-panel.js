@@ -11,9 +11,14 @@ import {
 } from '../core/color-ramps.js';
 import { BLEND_MODES } from '../core/base-layer.js';
 
-let currentPanel = null;
-let currentLayer = null;
-let currentValues = {};
+// Track open panels per layer (allows multiple style windows)
+// openPanels: Map<layerName, WinBox>
+// panelStates: Map<layerName, { layer, values }>
+const openPanels = new Map();
+const panelStates = new Map();
+
+// Clipboard for copy/paste style
+let styleClipboard = null;
 
 /**
  * Inject styles for the style panel
@@ -24,11 +29,25 @@ function injectStyles() {
   const style = document.createElement('style');
   style.id = 'sp-style-panel-styles';
   style.textContent = `
+    /* Map sp-* variables to global theme variables */
     .sp-style-panel {
-      font-family: var(--sp-font, system-ui, sans-serif);
+      --sp-font: var(--font, system-ui, sans-serif);
+      --sp-text: var(--text, #e0e0e0);
+      --sp-text-dim: var(--text-dim, #888);
+      --sp-bg: var(--bg-panel, #252525);
+      --sp-bg-alt: var(--bg-dark, #1a1a1a);
+      --sp-input-bg: var(--bg-input, #3c3c3c);
+      --sp-border: var(--border, #3a3a3a);
+      --sp-accent: var(--accent, #4a9eff);
+      --sp-accent-hover: var(--accent-dim, #2d5a8a);
+      --sp-hover: var(--bg-input, #3c3c3c);
+    }
+
+    .sp-style-panel {
+      font-family: var(--sp-font);
       font-size: 13px;
-      color: var(--sp-text, #e0e0e0);
-      background: var(--sp-bg, #1e1e1e);
+      color: var(--sp-text);
+      background: var(--sp-bg);
       height: 100%;
       display: flex;
       flex-direction: column;
@@ -39,6 +58,25 @@ function injectStyles() {
       flex: 1;
       overflow-y: auto;
       padding: 12px;
+    }
+
+    /* Global form element styling for all elements in style panel */
+    .sp-style-panel select,
+    .sp-style-panel input[type="text"],
+    .sp-style-panel input[type="number"] {
+      background: var(--sp-input-bg);
+      border: 1px solid var(--sp-border);
+      border-radius: 4px;
+      color: var(--sp-text);
+      font-size: 12px;
+      padding: 6px 8px;
+      box-sizing: border-box;
+    }
+
+    .sp-style-panel select:focus,
+    .sp-style-panel input:focus {
+      outline: none;
+      border-color: var(--sp-accent);
     }
 
     .sp-style-section {
@@ -340,6 +378,145 @@ function injectStyles() {
       gap: 8px;
       justify-content: flex-end;
       margin-top: 16px;
+    }
+
+    /* Rules table styles */
+    .sp-rules-container {
+      margin-top: 8px;
+    }
+
+    .sp-rules-fill-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .sp-rules-fill-row select {
+      flex: 1;
+      padding: 6px 8px;
+      border: 1px solid var(--sp-border, #444);
+      border-radius: 4px;
+      background: var(--sp-input-bg, #2a2a2a);
+      color: var(--sp-text, #e0e0e0);
+      font-size: 12px;
+      box-sizing: border-box;
+    }
+
+    .sp-rules-fill-row select:focus {
+      outline: none;
+      border-color: var(--sp-accent, #4a9eff);
+    }
+
+    .sp-rules-fill-row button {
+      padding: 6px 12px;
+      border: 1px solid var(--sp-border, #444);
+      border-radius: 4px;
+      background: var(--sp-input-bg, #2a2a2a);
+      color: var(--sp-text, #e0e0e0);
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .sp-rules-fill-row button:hover {
+      background: var(--sp-hover, #333);
+    }
+
+    .sp-rules-table-wrap {
+      max-height: 220px;
+      overflow-y: auto;
+      border: 1px solid var(--sp-border, #333);
+      border-radius: 4px;
+      margin-bottom: 8px;
+    }
+
+    .sp-rules-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+
+    .sp-rules-table th {
+      background: var(--sp-bg-alt, #252525);
+      padding: 6px 8px;
+      text-align: left;
+      font-weight: 500;
+      color: var(--sp-text-dim, #888);
+      text-transform: uppercase;
+      font-size: 10px;
+      position: sticky;
+      top: 0;
+    }
+
+    .sp-rules-table td {
+      padding: 4px 6px;
+      border-top: 1px solid var(--sp-border, #333);
+      vertical-align: middle;
+    }
+
+    .sp-rules-table input[type="text"] {
+      width: 100%;
+      padding: 4px 6px;
+      border: 1px solid var(--sp-border, #444);
+      border-radius: 3px;
+      background: var(--sp-input-bg, #2a2a2a);
+      color: var(--sp-text, #e0e0e0);
+      font-size: 11px;
+      font-family: monospace;
+      box-sizing: border-box;
+    }
+
+    .sp-rules-table input[type="color"] {
+      width: 32px;
+      height: 24px;
+      padding: 0;
+      border: 1px solid var(--sp-border, #444);
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    .sp-rules-table .sp-rule-remove {
+      background: transparent;
+      border: none;
+      color: #f55;
+      font-size: 16px;
+      cursor: pointer;
+      padding: 2px 6px;
+    }
+
+    .sp-rules-table .sp-rule-remove:hover {
+      color: #ff7777;
+    }
+
+    .sp-rules-footer {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .sp-add-rule-btn {
+      padding: 6px 12px;
+      border: 1px dashed var(--sp-border, #444);
+      border-radius: 4px;
+      background: transparent;
+      color: var(--sp-text-dim, #888);
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .sp-add-rule-btn:hover {
+      border-color: var(--sp-accent, #4a9eff);
+      color: var(--sp-accent, #4a9eff);
+    }
+
+    .sp-default-color {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      font-size: 11px;
+      color: var(--sp-text-dim, #888);
     }
   `;
   document.head.appendChild(style);
@@ -820,9 +997,9 @@ function buildPanelContent(layer) {
   const isLine = layer.geomType?.includes('Line');
   const hasFields = layer.fields && layer.fields.length > 0;
 
-  // Initialize values from current style
+  // Initialize values from current style (per-panel state)
   const existingStyle = layer._styleOpts || {};
-  currentValues = {
+  const values = {
     styleType: existingStyle.type || 'single',
     fill: existingStyle.fill || existingStyle.rules?.[0]?.fill || '#4a9eff',
     stroke: existingStyle.stroke || '#000000',
@@ -841,7 +1018,11 @@ function buildPanelContent(layer) {
     labelSize: existingStyle.labelSize || 12,
     labelOutline: existingStyle.labelOutline || '#000000',
     labelOutlineWidth: existingStyle.labelOutlineWidth ?? 3,
+    rules: existingStyle.rules || [],
   };
+
+  // Store in per-panel state
+  panelStates.set(layer.name, { layer, values });
 
   const container = document.createElement('div');
   container.className = 'sp-style-panel';
@@ -849,9 +1030,9 @@ function buildPanelContent(layer) {
   const body = document.createElement('div');
   body.className = 'sp-style-panel-body';
 
-  // Handler for value changes
+  // Handler for value changes (uses closure to access this panel's values)
   const handleChange = (param, value) => {
-    currentValues[param] = value;
+    values[param] = value;
 
     // Rebuild dynamic sections when style type changes
     if (param === 'styleType') {
@@ -859,11 +1040,11 @@ function buildPanelContent(layer) {
     }
 
     // Update field stats when graduated field changes
-    if (param === 'field' && currentValues.styleType === 'graduated' && value) {
+    if (param === 'field' && values.styleType === 'graduated' && value) {
       const stats = getFieldStats(layer, value);
       if (stats) {
-        currentValues.min = stats.min;
-        currentValues.max = stats.max;
+        values.min = stats.min;
+        values.max = stats.max;
         // Update inputs
         const minInput = container.querySelector('[data-param="min"]');
         const maxInput = container.querySelector('[data-param="max"]');
@@ -898,12 +1079,13 @@ function buildPanelContent(layer) {
   const rebuildDynamicContent = () => {
     dynamicArea.innerHTML = '';
 
-    const styleType = currentValues.styleType;
+    const styleType = values.styleType;
 
     // === Style Type Section ===
     const { section: typeSection, content: typeContent } = createSection('Style Type');
     typeContent.appendChild(createSelectRow('Type', 'styleType', [
       { value: 'single', label: 'Single Symbol' },
+      { value: 'rules', label: 'Rules (Discrete)' },
       { value: 'categorical', label: 'Categorized' },
       { value: 'graduated', label: 'Graduated' },
     ], styleType, handleChange));
@@ -913,23 +1095,183 @@ function buildPanelContent(layer) {
     if (styleType === 'single') {
       const { section: fillSection, content: fillContent } = createSection('Fill');
       if (!isLine) {
-        fillContent.appendChild(createColorRow('Fill Color', 'fill', currentValues.fill, handleChange));
+        fillContent.appendChild(createColorRow('Fill Color', 'fill', values.fill, handleChange));
       }
       dynamicArea.appendChild(fillSection);
+
+    } else if (styleType === 'rules') {
+      const { section: rulesSection, content: rulesContent } = createSection('Rules');
+
+      if (hasFields) {
+        // Fill from field row
+        const fillRow = document.createElement('div');
+        fillRow.className = 'sp-rules-fill-row';
+
+        const fieldSelect = document.createElement('select');
+        fieldSelect.innerHTML = '<option value="">-- select field --</option>' +
+          layer.fields.map(f => `<option value="${f}">${f}</option>`).join('');
+
+        const scaleSelect = document.createElement('select');
+        const scaleOpts = getScaleOptions();
+        scaleSelect.innerHTML = scaleOpts.map(s => `<option value="${s.value}">${s.label}</option>`).join('');
+
+        const fillBtn = document.createElement('button');
+        fillBtn.textContent = 'Fill';
+        fillBtn.addEventListener('click', () => {
+          const field = fieldSelect.value;
+          const scale = scaleSelect.value;
+          if (!field) return;
+
+          // Generate rules from field
+          const generatedRules = generateRulesFromField(layer, field, scale);
+          values.rules = generatedRules;
+
+          // Rebuild rules table
+          rulesTableBody.innerHTML = '';
+          generatedRules.forEach(rule => addRuleRow(rule));
+        });
+
+        fillRow.appendChild(fieldSelect);
+        fillRow.appendChild(scaleSelect);
+        fillRow.appendChild(fillBtn);
+        rulesContent.appendChild(fillRow);
+
+        // Rules table
+        const tableWrap = document.createElement('div');
+        tableWrap.className = 'sp-rules-table-wrap';
+
+        const table = document.createElement('table');
+        table.className = 'sp-rules-table';
+        table.innerHTML = `
+          <thead>
+            <tr>
+              <th style="width: 45%">Filter</th>
+              <th style="width: 50px">Color</th>
+              <th style="width: 30%">Label</th>
+              <th style="width: 30px"></th>
+            </tr>
+          </thead>
+        `;
+
+        const rulesTableBody = document.createElement('tbody');
+        table.appendChild(rulesTableBody);
+
+        // Function to add a rule row
+        const addRuleRow = (rule = { filter: '', fill: '#4a9eff', label: '' }) => {
+          const tr = document.createElement('tr');
+
+          const filterTd = document.createElement('td');
+          const filterInput = document.createElement('input');
+          filterInput.type = 'text';
+          filterInput.placeholder = "r.field == 'value'";
+          filterInput.value = rule.filter || '';
+          filterInput.addEventListener('input', () => {
+            updateRulesFromTable();
+          });
+          filterTd.appendChild(filterInput);
+
+          const colorTd = document.createElement('td');
+          const colorInput = document.createElement('input');
+          colorInput.type = 'color';
+          colorInput.value = rule.fill || '#4a9eff';
+          colorInput.addEventListener('input', () => {
+            updateRulesFromTable();
+          });
+          colorTd.appendChild(colorInput);
+
+          const labelTd = document.createElement('td');
+          const labelInput = document.createElement('input');
+          labelInput.type = 'text';
+          labelInput.placeholder = 'Label';
+          labelInput.value = rule.label || '';
+          labelInput.addEventListener('input', () => {
+            updateRulesFromTable();
+          });
+          labelTd.appendChild(labelInput);
+
+          const removeTd = document.createElement('td');
+          const removeBtn = document.createElement('button');
+          removeBtn.className = 'sp-rule-remove';
+          removeBtn.innerHTML = '&times;';
+          removeBtn.addEventListener('click', () => {
+            tr.remove();
+            updateRulesFromTable();
+          });
+          removeTd.appendChild(removeBtn);
+
+          tr.appendChild(filterTd);
+          tr.appendChild(colorTd);
+          tr.appendChild(labelTd);
+          tr.appendChild(removeTd);
+          rulesTableBody.appendChild(tr);
+        };
+
+        // Function to update values.rules from table
+        const updateRulesFromTable = () => {
+          const rows = rulesTableBody.querySelectorAll('tr');
+          values.rules = Array.from(rows).map(row => ({
+            filter: row.querySelector('input[type="text"]').value,
+            fill: row.querySelector('input[type="color"]').value,
+            label: row.querySelectorAll('input[type="text"]')[1]?.value || ''
+          }));
+        };
+
+        tableWrap.appendChild(table);
+        rulesContent.appendChild(tableWrap);
+
+        // Footer with Add Rule button and Default color
+        const footer = document.createElement('div');
+        footer.className = 'sp-rules-footer';
+
+        const addBtn = document.createElement('button');
+        addBtn.className = 'sp-add-rule-btn';
+        addBtn.textContent = '+ Add Rule';
+        addBtn.addEventListener('click', () => {
+          addRuleRow();
+        });
+
+        const defaultRow = document.createElement('div');
+        defaultRow.className = 'sp-default-color';
+        defaultRow.innerHTML = '<span>Default</span>';
+        const defaultColor = document.createElement('input');
+        defaultColor.type = 'color';
+        defaultColor.value = values.default;
+        defaultColor.addEventListener('input', (e) => {
+          handleChange('default', e.target.value);
+        });
+        defaultRow.appendChild(defaultColor);
+
+        footer.appendChild(addBtn);
+        footer.appendChild(defaultRow);
+        rulesContent.appendChild(footer);
+
+        // Populate existing rules
+        if (values.rules && values.rules.length > 0) {
+          values.rules.forEach(rule => addRuleRow(rule));
+        }
+
+      } else {
+        const hint = document.createElement('div');
+        hint.className = 'sp-style-hint';
+        hint.textContent = 'No fields available for rule-based styling';
+        rulesContent.appendChild(hint);
+      }
+
+      dynamicArea.appendChild(rulesSection);
 
     } else if (styleType === 'categorical') {
       const { section: catSection, content: catContent } = createSection('Categorize By');
 
       if (hasFields) {
-        catContent.appendChild(createSelectRow('Field', 'field', getFieldOptions(layer), currentValues.field, handleChange));
-        catContent.appendChild(createSelectRow('Palette', 'palette', getScaleOptions(), currentValues.palette, handleChange));
+        catContent.appendChild(createSelectRow('Field', 'field', getFieldOptions(layer), values.field, handleChange));
+        catContent.appendChild(createSelectRow('Palette', 'palette', getScaleOptions(), values.palette, handleChange));
 
         const previewContainer = document.createElement('div');
         previewContainer.id = 'palette-preview-container';
-        previewContainer.appendChild(createPalettePreview(currentValues.palette));
+        previewContainer.appendChild(createPalettePreview(values.palette));
         catContent.appendChild(previewContainer);
 
-        catContent.appendChild(createColorRow('Default Color', 'default', currentValues.default, handleChange));
+        catContent.appendChild(createColorRow('Default Color', 'default', values.default, handleChange));
       } else {
         const hint = document.createElement('div');
         hint.className = 'sp-style-hint';
@@ -944,26 +1286,26 @@ function buildPanelContent(layer) {
 
       const numericOptions = getNumericFieldOptions(layer);
       if (numericOptions.length > 1) {
-        gradContent.appendChild(createSelectRow('Field', 'field', numericOptions, currentValues.field, handleChange));
-        gradContent.appendChild(createSelectRow('Color Ramp', 'scale', getScaleOptions(), currentValues.scale, handleChange));
+        gradContent.appendChild(createSelectRow('Field', 'field', numericOptions, values.field, handleChange));
+        gradContent.appendChild(createSelectRow('Color Ramp', 'scale', getScaleOptions(), values.scale, handleChange));
 
         const previewContainer = document.createElement('div');
         previewContainer.id = 'ramp-preview-container';
-        previewContainer.appendChild(createRampPreview(currentValues.scale));
+        previewContainer.appendChild(createRampPreview(values.scale));
         gradContent.appendChild(previewContainer);
 
         // Auto-populate min/max from field stats
-        if (currentValues.field) {
-          const stats = getFieldStats(layer, currentValues.field);
+        if (values.field) {
+          const stats = getFieldStats(layer, values.field);
           if (stats) {
-            if (currentValues.min === undefined) currentValues.min = stats.min;
-            if (currentValues.max === undefined) currentValues.max = stats.max;
+            if (values.min === undefined) values.min = stats.min;
+            if (values.max === undefined) values.max = stats.max;
           }
         }
 
-        gradContent.appendChild(createNumberRow('Min', 'min', currentValues.min ?? 0, -999999, 999999, 0.1, handleChange));
-        gradContent.appendChild(createNumberRow('Max', 'max', currentValues.max ?? 100, -999999, 999999, 0.1, handleChange));
-        gradContent.appendChild(createColorRow('Default Color', 'default', currentValues.default, handleChange));
+        gradContent.appendChild(createNumberRow('Min', 'min', values.min ?? 0, -999999, 999999, 0.1, handleChange));
+        gradContent.appendChild(createNumberRow('Max', 'max', values.max ?? 100, -999999, 999999, 0.1, handleChange));
+        gradContent.appendChild(createColorRow('Default Color', 'default', values.default, handleChange));
       } else {
         const hint = document.createElement('div');
         hint.className = 'sp-style-hint';
@@ -976,18 +1318,18 @@ function buildPanelContent(layer) {
 
     // === Stroke Section ===
     const { section: strokeSection, content: strokeContent } = createSection('Stroke');
-    strokeContent.appendChild(createColorRow('Stroke Color', 'stroke', currentValues.stroke, handleChange));
-    strokeContent.appendChild(createNumberRow('Width', 'width', currentValues.width, 0, 10, 0.5, handleChange));
+    strokeContent.appendChild(createColorRow('Stroke Color', 'stroke', values.stroke, handleChange));
+    strokeContent.appendChild(createNumberRow('Width', 'width', values.width, 0, 10, 0.5, handleChange));
 
     if (isPoint) {
-      strokeContent.appendChild(createNumberRow('Radius', 'radius', currentValues.radius, 1, 50, 1, handleChange));
+      strokeContent.appendChild(createNumberRow('Radius', 'radius', values.radius, 1, 50, 1, handleChange));
     }
     dynamicArea.appendChild(strokeSection);
 
     // === Display Section ===
     const { section: displaySection, content: displayContent } = createSection('Display');
-    displayContent.appendChild(createSliderRow('Opacity', 'opacity', currentValues.opacity, 0, 1, 0.05, handleChange));
-    displayContent.appendChild(createSelectRow('Blend Mode', 'blendMode', getBlendModeOptions(), currentValues.blendMode, handleChange));
+    displayContent.appendChild(createSliderRow('Opacity', 'opacity', values.opacity, 0, 1, 0.05, handleChange));
+    displayContent.appendChild(createSelectRow('Blend Mode', 'blendMode', getBlendModeOptions(), values.blendMode, handleChange));
     dynamicArea.appendChild(displaySection);
 
     // === Labels Section ===
@@ -996,11 +1338,11 @@ function buildPanelContent(layer) {
       labelContent.appendChild(createSelectRow('Label Field', 'labelField', [
         { value: '', label: '(none)' },
         ...layer.fields.map(f => ({ value: f, label: f }))
-      ], currentValues.labelField, handleChange));
-      labelContent.appendChild(createColorRow('Color', 'labelColor', currentValues.labelColor, handleChange));
-      labelContent.appendChild(createNumberRow('Size', 'labelSize', currentValues.labelSize, 8, 32, 1, handleChange));
-      labelContent.appendChild(createColorRow('Outline', 'labelOutline', currentValues.labelOutline, handleChange));
-      labelContent.appendChild(createNumberRow('Outline Width', 'labelOutlineWidth', currentValues.labelOutlineWidth, 0, 10, 0.5, handleChange));
+      ], values.labelField, handleChange));
+      labelContent.appendChild(createColorRow('Color', 'labelColor', values.labelColor, handleChange));
+      labelContent.appendChild(createNumberRow('Size', 'labelSize', values.labelSize, 8, 32, 1, handleChange));
+      labelContent.appendChild(createColorRow('Outline', 'labelOutline', values.labelOutline, handleChange));
+      labelContent.appendChild(createNumberRow('Outline Width', 'labelOutlineWidth', values.labelOutlineWidth, 0, 10, 0.5, handleChange));
       dynamicArea.appendChild(labelSection);
     }
   };
@@ -1017,7 +1359,9 @@ function buildPanelContent(layer) {
   cancelBtn.className = 'sp-style-btn';
   cancelBtn.textContent = 'Cancel';
   cancelBtn.addEventListener('click', () => {
-    currentPanel?.close();
+    // Close this specific layer's panel
+    const panel = openPanels.get(layer.name);
+    if (panel) panel.close();
   });
 
   const applyBtn = document.createElement('button');
@@ -1040,40 +1384,49 @@ function buildPanelContent(layer) {
  * Apply the current style values to the layer
  */
 function applyCurrentStyle(layer) {
-  const styleType = currentValues.styleType;
+  // Look up values from per-panel state
+  const state = panelStates.get(layer.name);
+  if (!state) {
+    termPrint('No style panel state found', 'red');
+    return;
+  }
+  const values = state.values;
+  const styleType = values.styleType;
 
   const styleOpts = {
     type: styleType,
-    stroke: currentValues.stroke,
-    width: currentValues.width,
-    opacity: currentValues.opacity,
-    radius: currentValues.radius,
-    labelField: currentValues.labelField || undefined,
-    labelColor: currentValues.labelColor,
-    labelSize: currentValues.labelSize,
-    labelOutline: currentValues.labelOutline,
-    labelOutlineWidth: currentValues.labelOutlineWidth,
-    default: currentValues.default,
+    stroke: values.stroke,
+    width: values.width,
+    opacity: values.opacity,
+    radius: values.radius,
+    labelField: values.labelField || undefined,
+    labelColor: values.labelColor,
+    labelSize: values.labelSize,
+    labelOutline: values.labelOutline,
+    labelOutlineWidth: values.labelOutlineWidth,
+    default: values.default,
   };
 
   if (styleType === 'single') {
-    styleOpts.fill = currentValues.fill;
+    styleOpts.fill = values.fill;
+  } else if (styleType === 'rules') {
+    styleOpts.rules = values.rules;
   } else if (styleType === 'categorical') {
-    styleOpts.field = currentValues.field;
-    styleOpts.palette = currentValues.palette;
+    styleOpts.field = values.field;
+    styleOpts.palette = values.palette;
   } else if (styleType === 'graduated') {
-    styleOpts.field = currentValues.field;
-    styleOpts.scale = currentValues.scale;
-    styleOpts.min = currentValues.min;
-    styleOpts.max = currentValues.max;
+    styleOpts.field = values.field;
+    styleOpts.scale = values.scale;
+    styleOpts.min = values.min;
+    styleOpts.max = values.max;
   }
 
   // Apply style
   applyStyle(layer, styleOpts);
 
   // Apply blend mode separately (not part of vector styling)
-  if (currentValues.blendMode && layer.blendMode) {
-    layer.blendMode(currentValues.blendMode);
+  if (values.blendMode && layer.blendMode) {
+    layer.blendMode(values.blendMode);
   }
 
   // Store style opts on layer for persistence
@@ -1100,34 +1453,41 @@ export function openStylePanel(layer) {
 
   injectStyles();
 
-  // Close existing panel
-  if (currentPanel) {
+  // If panel for this layer already exists, focus it
+  const existingPanel = openPanels.get(layer.name);
+  if (existingPanel) {
     try {
-      currentPanel.close();
+      existingPanel.focus();
+      return existingPanel;
     } catch (e) {
-      // Panel already closed
+      // Panel was closed, remove from map
+      openPanels.delete(layer.name);
     }
   }
 
-  currentLayer = layer;
   const content = buildPanelContent(layer);
 
-  currentPanel = new WinBox({
+  // Offset position based on number of open panels
+  const offset = openPanels.size * 30;
+
+  const panel = new WinBox({
     title: `Style: ${layer.name}`,
-    width: '320px',
+    width: '400px',
     height: '500px',
     x: 'center',
     y: 'center',
+    top: 0,
+    left: 100 + offset,
     class: ['no-full'],
     mount: content,
     onclose: () => {
-      currentPanel = null;
-      currentLayer = null;
-      currentValues = {};
+      openPanels.delete(layer.name);
+      panelStates.delete(layer.name);
     },
   });
 
-  return currentPanel;
+  openPanels.set(layer.name, panel);
+  return panel;
 }
 
 /**
@@ -1135,8 +1495,8 @@ export function openStylePanel(layer) {
  */
 export function getStylePanelState() {
   return {
-    isOpen: currentPanel !== null,
-    layer: currentLayer?.name || null,
+    isOpen: openPanels.size > 0,
+    openLayers: Array.from(openPanels.keys()),
   };
 }
 
@@ -1189,14 +1549,20 @@ function createRasterRampPreview(rampName) {
 }
 
 /**
- * Build raster style panel content
+ * Build raster style panel content using widget system
  */
 function buildRasterPanelContent(layer) {
-  // Initialize values from current layer state
-  currentValues = {
+  // Check if layer currently uses an expression
+  const currentExpr = layer._customExpression || '';
+  const usesExpression = !!currentExpr;
+
+  // Initialize values from current layer state (per-panel state)
+  const values = {
     mode: layer._mode || 'singleband',
+    source: usesExpression ? 'expression' : 'band',
     colorRamp: layer._colorRamp || 'terrain',
     band: layer._selectedBand || 1,
+    expression: currentExpr,
     redBand: layer._bandMapping?.[0] || 1,
     greenBand: layer._bandMapping?.[1] || 2,
     blueBand: layer._bandMapping?.[2] || 3,
@@ -1206,27 +1572,36 @@ function buildRasterPanelContent(layer) {
     blendMode: layer._blendMode || 'source-over',
   };
 
+  // Store in per-panel state
+  panelStates.set(layer.name, { layer, values });
+
   const container = document.createElement('div');
-  container.className = 'sp-style-panel';
+  container.className = 'sp-style-panel raster-style-panel';
 
   const body = document.createElement('div');
   body.className = 'sp-style-panel-body';
 
-  // Handler for value changes
-  const handleChange = (param, value) => {
-    currentValues[param] = value;
+  // Handler for value changes from widget system (receives full values object)
+  const handleChange = (updatedValues) => {
+    // Check what changed by comparing with current values
+    const modeChanged = updatedValues.mode !== values.mode;
+    const rampChanged = updatedValues.colorRamp !== values.colorRamp;
+    const sourceChanged = updatedValues.source !== values.source;
 
-    // Rebuild content when mode changes
-    if (param === 'mode') {
+    // Update our local values object
+    Object.assign(values, updatedValues);
+
+    // Rebuild content when mode or source changes
+    if (modeChanged || sourceChanged) {
       rebuildDynamicContent();
     }
 
     // Update ramp preview
-    if (param === 'colorRamp') {
+    if (rampChanged) {
       const previewContainer = container.querySelector('#raster-ramp-preview-container');
       if (previewContainer) {
         previewContainer.innerHTML = '';
-        previewContainer.appendChild(createRasterRampPreview(value));
+        previewContainer.appendChild(createRasterRampPreview(values.colorRamp));
       }
     }
   };
@@ -1237,70 +1612,243 @@ function buildRasterPanelContent(layer) {
 
   const rebuildDynamicContent = () => {
     dynamicArea.innerHTML = '';
-    const mode = currentValues.mode;
+    const mode = values.mode;
     const bandCount = layer.bands || 1;
 
-    // === Render Mode Section ===
-    const { section: modeSection, content: modeContent } = createSection('Render Mode');
-    modeContent.appendChild(createSelectRow('Mode', 'mode', [
-      { value: 'singleband', label: 'Single Band' },
-      { value: 'rgb', label: 'RGB Composite' },
-      { value: 'grayscale', label: 'Grayscale' },
-    ], mode, handleChange));
+    // === Render Mode Section (using widget system) ===
+    const modeSection = widgets.renderSection({
+      label: 'Render Mode',
+      collapsible: true,
+      collapsed: false,
+      fields: [{
+        name: 'mode',
+        label: 'Mode',
+        type: 'select',
+        options: [
+          { value: 'singleband', label: 'Single Band' },
+          { value: 'rgb', label: 'RGB Composite' },
+          { value: 'grayscale', label: 'Grayscale' },
+        ],
+      }],
+    }, values, handleChange);
     dynamicArea.appendChild(modeSection);
 
     // === Mode-specific content ===
     if (mode === 'singleband' || mode === 'grayscale') {
-      const { section: bandSection, content: bandContent } = createSection('Band Selection');
-
-      if (bandCount > 1) {
-        bandContent.appendChild(createSelectRow('Display Band', 'band', getBandOptions(layer), currentValues.band, handleChange));
-      }
-
+      // For singleband mode, show source toggle (Band vs Expression)
       if (mode === 'singleband') {
-        const previewContainer = document.createElement('div');
-        previewContainer.id = 'raster-ramp-preview-container';
-        previewContainer.appendChild(createRasterRampPreview(currentValues.colorRamp));
+        // Source toggle section (Band vs Expression)
+        const sourceSection = widgets.renderSection({
+          label: 'Data Source',
+          collapsible: true,
+          collapsed: false,
+          fields: [{
+            name: 'source',
+            type: 'radioGroup',
+            options: [
+              { value: 'band', label: 'Band' },
+              { value: 'expression', label: 'Expression' },
+            ],
+          }],
+        }, values, handleChange);
+        dynamicArea.appendChild(sourceSection);
 
-        // Use custom ramp row with "+ New" button
-        bandContent.appendChild(createRampSelectRow('Color Ramp', 'colorRamp', getRampOptions(), currentValues.colorRamp, handleChange, (newRampName) => {
-          // Update preview when new ramp is created
-          previewContainer.innerHTML = '';
-          previewContainer.appendChild(createRasterRampPreview(newRampName));
-        }));
+        // Show Band selection OR Expression input based on source
+        if (values.source === 'band') {
+          // === Band Selection Section ===
+          const bandFields = [];
+          if (bandCount > 1) {
+            bandFields.push({
+              name: 'band',
+              label: 'Display Band',
+              type: 'select',
+              options: getBandOptions(layer),
+            });
+          }
 
-        bandContent.appendChild(previewContainer);
+          const bandSection = widgets.renderSection({
+            label: 'Band Selection',
+            collapsible: true,
+            collapsed: false,
+            fields: bandFields,
+          }, values, handleChange);
+
+          // Add custom ramp row with "+ New" button
+          const bandContent = bandSection.querySelector('.sp-section-content');
+          if (bandContent) {
+            const previewContainer = document.createElement('div');
+            previewContainer.id = 'raster-ramp-preview-container';
+            previewContainer.appendChild(createRasterRampPreview(values.colorRamp));
+
+            bandContent.appendChild(createRampSelectRow('Color Ramp', 'colorRamp', getRampOptions(), values.colorRamp,
+              (name, val) => {
+                values[name] = val;
+                handleChange(values);
+              },
+              (newRampName) => {
+                previewContainer.innerHTML = '';
+                previewContainer.appendChild(createRasterRampPreview(newRampName));
+              }
+            ));
+            bandContent.appendChild(previewContainer);
+          }
+          dynamicArea.appendChild(bandSection);
+
+        } else {
+          // === Expression Builder Section ===
+          // Define expression presets based on band count
+          const exprPresets = [
+            { label: 'NDVI', expr: '(b4 - b3) / (b4 + b3)', ramp: 'ndvi', min: -1, max: 1, disabled: bandCount < 4 },
+            { label: 'NDWI', expr: '(b2 - b4) / (b2 + b4)', ramp: 'bluered', min: -1, max: 1, disabled: bandCount < 4 },
+            { label: 'NIR/R', expr: 'b4 / b3', ramp: 'viridis', min: 0, max: 3, disabled: bandCount < 4 },
+            { label: 'Thresh', expr: 'b1 > 0.5 ? 1 : 0', ramp: 'grayscale', min: 0, max: 1, disabled: false },
+          ];
+
+          // Custom expression handler that also applies preset ramp/stretch
+          const handleExpressionChange = (exprValue, preset) => {
+            values.expression = exprValue;
+            // If a preset was clicked, apply its ramp and stretch values
+            if (preset && typeof preset === 'object' && preset.ramp) {
+              values.colorRamp = preset.ramp;
+              values.min = preset.min;
+              values.max = preset.max;
+              // Trigger UI update for ramp preview
+              const previewContainer = container.querySelector('#raster-ramp-preview-container');
+              if (previewContainer) {
+                previewContainer.innerHTML = '';
+                previewContainer.appendChild(createRasterRampPreview(values.colorRamp));
+              }
+              // Update ramp select
+              const rampSelect = container.querySelector('select[data-name="colorRamp"]');
+              if (rampSelect) rampSelect.value = values.colorRamp;
+              // Update stretch inputs
+              const minInput = container.querySelector('input[data-name="min"]');
+              const maxInput = container.querySelector('input[data-name="max"]');
+              if (minInput) minInput.value = values.min;
+              if (maxInput) maxInput.value = values.max;
+            }
+          };
+
+          const exprSection = widgets.renderSection({
+            label: 'Expression Builder',
+            collapsible: true,
+            collapsed: false,
+            fields: [
+              {
+                name: 'expression',
+                type: 'expression',
+                placeholder: 'e.g. (b4 - b3) / (b4 + b3)',
+                presets: exprPresets,
+              },
+              {
+                type: 'hint',
+                text: 'Use b1, b2, b3... for bands. Ops: + - * / > < == ? :',
+              },
+            ],
+          }, values, (updatedValues, ...args) => {
+            // Check if this is an expression field change with preset data
+            if (args.length > 0 && args[0] && typeof args[0] === 'object' && args[0].ramp) {
+              handleExpressionChange(updatedValues.expression, args[0]);
+            } else {
+              handleChange(updatedValues);
+            }
+          });
+
+          // Add custom ramp row for expression mode too
+          const exprContent = exprSection.querySelector('.sp-section-content');
+          if (exprContent) {
+            const previewContainer = document.createElement('div');
+            previewContainer.id = 'raster-ramp-preview-container';
+            previewContainer.appendChild(createRasterRampPreview(values.colorRamp));
+
+            exprContent.appendChild(createRampSelectRow('Color Ramp', 'colorRamp', getRampOptions(), values.colorRamp,
+              (name, val) => {
+                values[name] = val;
+                handleChange(values);
+              },
+              (newRampName) => {
+                previewContainer.innerHTML = '';
+                previewContainer.appendChild(createRasterRampPreview(newRampName));
+              }
+            ));
+            exprContent.appendChild(previewContainer);
+          }
+          dynamicArea.appendChild(exprSection);
+        }
+
+      } else {
+        // Grayscale mode - just band selection, no expression
+        const bandFields = [];
+        if (bandCount > 1) {
+          bandFields.push({
+            name: 'band',
+            label: 'Display Band',
+            type: 'select',
+            options: getBandOptions(layer),
+          });
+        }
+        if (bandFields.length > 0) {
+          const bandSection = widgets.renderSection({
+            label: 'Band Selection',
+            collapsible: true,
+            collapsed: false,
+            fields: bandFields,
+          }, values, handleChange);
+          dynamicArea.appendChild(bandSection);
+        }
       }
-
-      dynamicArea.appendChild(bandSection);
 
     } else if (mode === 'rgb') {
-      const { section: rgbSection, content: rgbContent } = createSection('Band Mapping');
-
       if (bandCount >= 3) {
-        rgbContent.appendChild(createSelectRow('Red Band', 'redBand', getBandOptions(layer), currentValues.redBand, handleChange));
-        rgbContent.appendChild(createSelectRow('Green Band', 'greenBand', getBandOptions(layer), currentValues.greenBand, handleChange));
-        rgbContent.appendChild(createSelectRow('Blue Band', 'blueBand', getBandOptions(layer), currentValues.blueBand, handleChange));
+        const rgbSection = widgets.renderSection({
+          label: 'Band Mapping',
+          collapsible: true,
+          collapsed: false,
+          fields: [
+            { name: 'redBand', label: 'Red Band', type: 'select', options: getBandOptions(layer) },
+            { name: 'greenBand', label: 'Green Band', type: 'select', options: getBandOptions(layer) },
+            { name: 'blueBand', label: 'Blue Band', type: 'select', options: getBandOptions(layer) },
+          ],
+        }, values, handleChange);
+        dynamicArea.appendChild(rgbSection);
       } else {
-        const hint = document.createElement('div');
-        hint.className = 'sp-style-hint';
-        hint.textContent = `RGB mode requires 3+ bands. This raster has ${bandCount} band(s).`;
-        rgbContent.appendChild(hint);
+        // Not enough bands - show hint
+        const rgbSection = widgets.renderSection({
+          label: 'Band Mapping',
+          collapsible: true,
+          collapsed: false,
+          fields: [{
+            name: '_hint',
+            type: 'hint',
+            text: `RGB mode requires 3+ bands. This raster has ${bandCount} band(s).`,
+          }],
+        }, values, handleChange);
+        dynamicArea.appendChild(rgbSection);
       }
-
-      dynamicArea.appendChild(rgbSection);
     }
 
-    // === Value Stretch Section ===
-    const { section: stretchSection, content: stretchContent } = createSection('Value Stretch');
-    stretchContent.appendChild(createNumberRow('Min', 'min', currentValues.min, -999999, 999999, 1, handleChange));
-    stretchContent.appendChild(createNumberRow('Max', 'max', currentValues.max, -999999, 999999, 1, handleChange));
+    // === Value Stretch Section (using widget system) ===
+    const stretchSection = widgets.renderSection({
+      label: 'Value Stretch',
+      collapsible: true,
+      collapsed: false,
+      fields: [
+        { name: 'min', label: 'Min', type: 'number', min: -999999, max: 999999, step: 1 },
+        { name: 'max', label: 'Max', type: 'number', min: -999999, max: 999999, step: 1 },
+      ],
+    }, values, handleChange);
     dynamicArea.appendChild(stretchSection);
 
-    // === Display Section ===
-    const { section: displaySection, content: displayContent } = createSection('Display', true);
-    displayContent.appendChild(createSliderRow('Opacity', 'opacity', currentValues.opacity, 0, 1, 0.05, handleChange));
-    displayContent.appendChild(createSelectRow('Blend Mode', 'blendMode', getBlendModeOptions(), currentValues.blendMode, handleChange));
+    // === Display Section (using widget system) ===
+    const displaySection = widgets.renderSection({
+      label: 'Display',
+      collapsible: true,
+      collapsed: false,
+      fields: [
+        { name: 'opacity', label: 'Opacity', type: 'range', min: 0, max: 1, step: 0.05 },
+        { name: 'blendMode', label: 'Blend Mode', type: 'select', options: getBlendModeOptions() },
+      ],
+    }, values, handleChange);
     dynamicArea.appendChild(displaySection);
   };
 
@@ -1308,19 +1856,20 @@ function buildRasterPanelContent(layer) {
   rebuildDynamicContent();
   body.appendChild(dynamicArea);
 
-  // Footer with buttons
+  // Footer with action buttons (using widget system actions pattern)
   const footer = document.createElement('div');
-  footer.className = 'sp-style-footer';
+  footer.className = 'sp-style-footer sp-actions';
 
   const cancelBtn = document.createElement('button');
-  cancelBtn.className = 'sp-style-btn';
+  cancelBtn.className = 'sp-style-btn sp-btn';
   cancelBtn.textContent = 'Cancel';
   cancelBtn.addEventListener('click', () => {
-    currentPanel?.close();
+    const panel = openPanels.get(layer.name);
+    if (panel) panel.close();
   });
 
   const applyBtn = document.createElement('button');
-  applyBtn.className = 'sp-style-btn sp-apply-btn';
+  applyBtn.className = 'sp-style-btn sp-apply-btn sp-btn sp-btn-primary';
   applyBtn.textContent = 'Apply';
   applyBtn.addEventListener('click', () => {
     applyRasterStyle(layer);
@@ -1339,44 +1888,89 @@ function buildRasterPanelContent(layer) {
  * Apply raster style from panel values
  */
 function applyRasterStyle(layer) {
-  const mode = currentValues.mode;
+  // Look up values from per-panel state
+  const state = panelStates.get(layer.name);
+  if (!state) {
+    termPrint('No style panel state found', 'red');
+    return;
+  }
+  const values = state.values;
+  const mode = values.mode;
 
   // Apply mode and color ramp
   if (mode === 'singleband') {
-    layer.r.mode('singleband');
-    layer.r.colorRamp(currentValues.colorRamp);
-    if (layer.bands > 1) {
-      layer.r.band(parseInt(currentValues.band));
+    // Check if using expression or band source
+    const useExpression = values.source === 'expression';
+
+    if (useExpression) {
+      // Apply expression with color ramp and stretch
+      const expr = values.expression?.trim();
+      if (expr) {
+        const ramp = values.colorRamp || 'viridis';
+        const stretchMin = values.min ?? -1;
+        const stretchMax = values.max ?? 1;
+        layer.r.expression(expr, { colorRamp: ramp, min: stretchMin, max: stretchMax });
+        termPrint(`Expression applied to ${layer.name}`, 'green');
+      } else {
+        termPrint('No expression specified', 'yellow');
+      }
+    } else {
+      // Clear any existing expression
+      if (layer._customExpression) {
+        layer.r.expression(null);
+      }
+      // Apply band settings
+      layer.r.mode('singleband');
+      layer.r.colorRamp(values.colorRamp);
+      if (layer.bands > 1) {
+        layer.r.band(parseInt(values.band));
+      }
+      // Apply stretch for band mode
+      if (values.min !== undefined && values.max !== undefined) {
+        layer.r.stretch(values.min, values.max);
+      }
+      termPrint(`Raster style applied to ${layer.name}`, 'green');
     }
   } else if (mode === 'grayscale') {
+    // Clear any existing expression
+    if (layer._customExpression) {
+      layer.r.expression(null);
+    }
     layer.r.mode('grayscale');
     if (layer.bands > 1) {
-      layer.r.band(parseInt(currentValues.band));
+      layer.r.band(parseInt(values.band));
     }
+    // Apply stretch
+    if (values.min !== undefined && values.max !== undefined) {
+      layer.r.stretch(values.min, values.max);
+    }
+    termPrint(`Raster style applied to ${layer.name}`, 'green');
   } else if (mode === 'rgb') {
+    // Clear any existing expression
+    if (layer._customExpression) {
+      layer.r.expression(null);
+    }
     layer.r.bands(
-      parseInt(currentValues.redBand),
-      parseInt(currentValues.greenBand),
-      parseInt(currentValues.blueBand)
+      parseInt(values.redBand),
+      parseInt(values.greenBand),
+      parseInt(values.blueBand)
     );
-  }
-
-  // Apply stretch
-  if (currentValues.min !== undefined && currentValues.max !== undefined) {
-    layer.r.stretch(currentValues.min, currentValues.max);
+    // Apply stretch for RGB
+    if (values.min !== undefined && values.max !== undefined) {
+      layer.r.stretch(values.min, values.max);
+    }
+    termPrint(`Raster style applied to ${layer.name}`, 'green');
   }
 
   // Apply opacity
-  if (currentValues.opacity !== undefined) {
-    layer.opacity(currentValues.opacity);
+  if (values.opacity !== undefined) {
+    layer.opacity(values.opacity);
   }
 
   // Apply blend mode
-  if (currentValues.blendMode && layer.blendMode) {
-    layer.blendMode(currentValues.blendMode);
+  if (values.blendMode && layer.blendMode) {
+    layer.blendMode(values.blendMode);
   }
-
-  termPrint(`Raster style applied to ${layer.name}`, 'green');
 }
 
 /**
@@ -1395,32 +1989,132 @@ export function openRasterStylePanel(layer) {
 
   injectStyles();
 
-  // Close existing panel
-  if (currentPanel) {
+  // If panel for this layer already exists, focus it
+  const existingPanel = openPanels.get(layer.name);
+  if (existingPanel) {
     try {
-      currentPanel.close();
+      existingPanel.focus();
+      return existingPanel;
     } catch (e) {
-      // Panel already closed
+      // Panel was closed, remove from map
+      openPanels.delete(layer.name);
     }
   }
 
-  currentLayer = layer;
   const content = buildRasterPanelContent(layer);
 
-  currentPanel = new WinBox({
+  // Offset position based on number of open panels
+  const offset = openPanels.size * 30;
+
+  const panel = new WinBox({
     title: `Style: ${layer.name}`,
-    width: '320px',
+    width: '400px',
     height: '450px',
     x: 'center',
     y: 'center',
+    top: 0,
+    left: 100 + offset,
     class: ['no-full'],
     mount: content,
     onclose: () => {
-      currentPanel = null;
-      currentLayer = null;
-      currentValues = {};
+      openPanels.delete(layer.name);
+      panelStates.delete(layer.name);
     },
   });
 
-  return currentPanel;
+  openPanels.set(layer.name, panel);
+  return panel;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// COPY/PASTE STYLE
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Copy style from a layer to clipboard
+ * @param {Layer} layer - The layer to copy style from
+ */
+export function copyStyle(layer) {
+  if (!layer) {
+    termPrint('No layer specified', 'red');
+    return;
+  }
+
+  styleClipboard = {
+    type: layer.type,
+    styleOpts: layer._styleOpts ? { ...layer._styleOpts } : null,
+    blendMode: layer._blendMode || 'source-over',
+    opacity: layer.opacity?.() ?? 1,
+  };
+
+  // For rasters, also copy raster-specific settings
+  if (layer.type === 'raster') {
+    styleClipboard.raster = {
+      mode: layer._mode,
+      colorRamp: layer._colorRamp,
+      selectedBand: layer._selectedBand,
+      bandMapping: layer._bandMapping ? [...layer._bandMapping] : null,
+      min: layer.minValue,
+      max: layer.maxValue,
+    };
+  }
+
+  termPrint(`Style copied from "${layer.name}"`, 'green');
+}
+
+/**
+ * Paste style to a layer from clipboard
+ * @param {Layer} layer - The layer to paste style to
+ */
+export function pasteStyle(layer) {
+  if (!layer) {
+    termPrint('No layer specified', 'red');
+    return;
+  }
+
+  if (!styleClipboard) {
+    termPrint('No style in clipboard. Copy a style first.', 'yellow');
+    return;
+  }
+
+  // Check type compatibility
+  if (layer.type !== styleClipboard.type) {
+    termPrint(`Cannot paste ${styleClipboard.type} style to ${layer.type} layer`, 'yellow');
+    return;
+  }
+
+  // Apply common settings
+  if (styleClipboard.blendMode && layer.blendMode) {
+    layer.blendMode(styleClipboard.blendMode);
+  }
+  if (styleClipboard.opacity !== undefined && layer.opacity) {
+    layer.opacity(styleClipboard.opacity);
+  }
+
+  // Apply type-specific settings
+  if (layer.type === 'vector' && styleClipboard.styleOpts) {
+    applyStyle(layer, styleClipboard.styleOpts);
+    layer._styleOpts = { ...styleClipboard.styleOpts };
+  } else if (layer.type === 'raster' && styleClipboard.raster) {
+    const r = styleClipboard.raster;
+    if (r.mode && layer.r?.mode) layer.r.mode(r.mode);
+    if (r.colorRamp && layer.r?.colorRamp) layer.r.colorRamp(r.colorRamp);
+    if (r.selectedBand && layer.r?.band) layer.r.band(r.selectedBand);
+    if (r.bandMapping && layer.r?.bands) layer.r.bands(...r.bandMapping);
+    if (r.min !== undefined && r.max !== undefined && layer.r?.stretch) {
+      layer.r.stretch(r.min, r.max);
+    }
+  }
+
+  termPrint(`Style pasted to "${layer.name}"`, 'green');
+}
+
+/**
+ * Check if clipboard has a style that can be pasted to a layer
+ * @param {Layer} layer - The layer to check compatibility with
+ * @returns {boolean} True if style can be pasted
+ */
+export function canPasteStyle(layer) {
+  if (!styleClipboard || !layer) return false;
+  return styleClipboard.type === layer.type;
 }
