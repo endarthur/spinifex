@@ -125,10 +125,17 @@ export async function loadFile(file, name, options = {}) {
         return loadCSV(csvText, layerName, options);
       default:
         termPrint(`Unknown format: ${filename}`, 'red');
+        termPrint('Supported formats: GeoJSON, CSV, XLSX, Shapefile (.zip), GeoTIFF', 'yellow');
         return null;
     }
   } catch (e) {
     termPrint(`Error loading ${filename}: ${e.message}`, 'red');
+    // Add helpful hints for common errors
+    if (e.message.includes('JSON')) {
+      termPrint('Hint: File may be corrupted or not valid JSON', 'yellow');
+    } else if (e.message.includes('shapefile') || e.message.includes('.shp')) {
+      termPrint('Hint: Shapefile must be a .zip containing .shp, .shx, .dbf files', 'yellow');
+    }
     return null;
   }
 }
@@ -182,10 +189,14 @@ export async function loadURL(url, name, options = {}) {
         return await loadShapefile(buffer, layerName, options);
       default:
         termPrint(`Unknown format: ${filename}`, 'red');
+        termPrint('Supported formats: GeoJSON, CSV, XLSX, Shapefile (.zip), GeoTIFF', 'yellow');
         return null;
     }
   } catch (e) {
     termPrint(`Error fetching ${url}: ${e.message}`, 'red');
+    if (e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
+      termPrint('Hint: Check URL is correct and server allows CORS', 'yellow');
+    }
     return null;
   }
 }

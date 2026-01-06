@@ -4,7 +4,7 @@
 // Requires shpjs (read) and shpwrite (write) libraries
 
 import { loadGeoJSON } from './geojson.js';
-import { termPrint } from '../ui/terminal.js';
+import { termPrint, withLoadingWarning } from '../ui/terminal.js';
 
 // Library references
 let shp = null;      // shpjs for reading
@@ -24,7 +24,7 @@ async function ensureShp() {
   // Dynamically load shpjs
   termPrint('Loading Shapefile library...', 'dim');
 
-  return new Promise((resolve, reject) => {
+  const loadPromise = new Promise((resolve, reject) => {
     const script = document.createElement('script');
     script.src = 'https://cdn.jsdelivr.net/npm/shpjs@latest/dist/shp.min.js';
     script.onload = () => {
@@ -33,10 +33,12 @@ async function ensureShp() {
       resolve(shp);
     };
     script.onerror = () => {
-      reject(new Error('Failed to load Shapefile library'));
+      reject(new Error('Failed to load Shapefile library. Check your internet connection.'));
     };
     document.head.appendChild(script);
   });
+
+  return withLoadingWarning(loadPromise, 'Shapefile library', 3000);
 }
 
 /**
@@ -90,6 +92,14 @@ export async function loadShapefile(buffer, name, options = {}) {
     return null;
   } catch (e) {
     termPrint(`Shapefile error: ${e.message}`, 'red');
+    // Add helpful hints for common errors
+    if (e.message.includes('end of central directory') || e.message.includes('not a valid zip')) {
+      termPrint('Hint: Shapefile must be a valid .zip file', 'yellow');
+    } else if (e.message.includes('.shp') || e.message.includes('.dbf') || e.message.includes('.shx')) {
+      termPrint('Hint: ZIP must contain .shp, .shx, and .dbf files', 'yellow');
+    } else {
+      termPrint('Hint: Shapefile should be zipped with .shp, .shx, .dbf files inside', 'yellow');
+    }
     return null;
   }
 }
@@ -138,7 +148,7 @@ async function ensureShpwrite() {
   // Dynamically load shpwrite
   termPrint('Loading Shapefile export library...', 'dim');
 
-  return new Promise((resolve, reject) => {
+  const loadPromise = new Promise((resolve, reject) => {
     const script = document.createElement('script');
     script.src = 'https://cdn.jsdelivr.net/npm/@mapbox/shp-write@0.4.3/shpwrite.js';
     script.onload = () => {
@@ -147,10 +157,12 @@ async function ensureShpwrite() {
       resolve(shpwrite);
     };
     script.onerror = () => {
-      reject(new Error('Failed to load shpwrite library'));
+      reject(new Error('Failed to load shpwrite library. Check your internet connection.'));
     };
     document.head.appendChild(script);
   });
+
+  return withLoadingWarning(loadPromise, 'Shapefile export library', 3000);
 }
 
 /**

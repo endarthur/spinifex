@@ -818,6 +818,36 @@ const docs = {
   Supports: Point, LineString, Polygon, Multi* geometries
   Preserves properties as KML ExtendedData`,
 
+  shortcuts: `Keyboard Shortcuts
+
+  Terminal:
+    Tab             Autocomplete (cycle through matches)
+    Up / Down       Command history navigation
+    Home / End      Jump to start/end of line
+    Ctrl+C          Cancel current input / Copy selection
+    Ctrl+V          Paste from clipboard
+    Ctrl+L          Clear terminal screen
+
+  General:
+    Escape          Close menus, dialogs, and cancel operations
+    Delete          Remove selected features (in edit mode)
+
+  Map:
+    Double-click    Zoom in at point
+    Scroll          Zoom in/out
+    Drag            Pan map
+    Shift+Drag      Zoom to box
+
+  Measurement:
+    Click           Add point
+    Double-click    Finish measurement
+    Escape          Cancel measurement
+
+  Attribute Table:
+    Click row       Select & highlight on map
+    Double-click    Zoom to feature
+    Ctrl+C          Copy selected cell`,
+
   // ─────────────────────────────────────────────────────────────────────────
   // Color Ramps
   // ─────────────────────────────────────────────────────────────────────────
@@ -1040,12 +1070,15 @@ export function help(fn) {
     termPrint('  .zip (shapefile)          Zipped shapefile');
     termPrint('  .tif, .tiff               GeoTIFF raster');
     termPrint('');
-    termPrint('Terminal Shortcuts', 'yellow');
+    termPrint('Keyboard Shortcuts', 'yellow');
     termPrint('  Tab                       Autocomplete');
-    termPrint('  Tab Tab                   Cycle through matches');
     termPrint('  Up/Down                   Command history');
+    termPrint('  Home/End                  Jump to line start/end');
     termPrint('  Ctrl+C                    Cancel / Copy selection');
     termPrint('  Ctrl+V                    Paste');
+    termPrint('  Ctrl+L                    Clear terminal');
+    termPrint('  Escape                    Close menus/dialogs');
+    termPrint('  help("shortcuts")         Full shortcut list');
     termPrint('');
     termPrint('Click features on map to inspect.', 'dim');
     termPrint('');

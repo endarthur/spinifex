@@ -3,7 +3,7 @@
 // Requires SheetJS (xlsx) library
 
 import { loadCSV } from './csv.js';
-import { termPrint } from '../ui/terminal.js';
+import { termPrint, withLoadingWarning } from '../ui/terminal.js';
 
 // SheetJS library reference (loaded from CDN)
 let XLSX = null;
@@ -22,7 +22,7 @@ async function ensureXLSX() {
   // Dynamically load SheetJS
   termPrint('Loading XLSX library...', 'dim');
 
-  return new Promise((resolve, reject) => {
+  const loadPromise = new Promise((resolve, reject) => {
     const script = document.createElement('script');
     script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
     script.onload = () => {
@@ -31,10 +31,12 @@ async function ensureXLSX() {
       resolve(XLSX);
     };
     script.onerror = () => {
-      reject(new Error('Failed to load XLSX library'));
+      reject(new Error('Failed to load XLSX library. Check your internet connection.'));
     };
     document.head.appendChild(script);
   });
+
+  return withLoadingWarning(loadPromise, 'XLSX library', 3000);
 }
 
 /**

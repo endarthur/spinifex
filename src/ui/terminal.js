@@ -44,6 +44,22 @@ export function termPrint(text, color = null) {
 }
 
 /**
+ * Wrap a promise with a slow-loading warning
+ * Shows a message if the operation takes longer than the timeout
+ */
+export function withLoadingWarning(promise, message, timeoutMs = 3000) {
+  let warned = false;
+  const timeoutId = setTimeout(() => {
+    warned = true;
+    termPrint(`${message} (still loading...)`, 'dim');
+  }, timeoutMs);
+
+  return promise.finally(() => {
+    clearTimeout(timeoutId);
+  });
+}
+
+/**
  * Show the prompt
  */
 export function termPrompt() {
@@ -595,8 +611,15 @@ export function initTerminal() {
         const { prefix, candidates } = getCompletions(textBeforeCursor);
 
         if (candidates.length === 0) {
-          // No completions - beep or do nothing
+          // No completions - show subtle feedback
           completionCandidates = [];
+          if (prefix.length > 0) {
+            term.write('\r\n');
+            term.write('\x1b[90m(no matches)\x1b[0m');
+            term.write('\r\n');
+            redrawPrompt();
+            redrawLine();
+          }
           return;
         }
 

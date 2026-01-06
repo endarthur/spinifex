@@ -3,7 +3,7 @@
 // Supports single-band, RGB, and RGBA rasters
 
 import { createWebGLRasterLayer, RENDER_MODES, COLOR_RAMPS } from '../raster/webgl-raster.js';
-import { termPrint } from '../ui/terminal.js';
+import { termPrint, withLoadingWarning } from '../ui/terminal.js';
 
 // geotiff.js library reference
 let GeoTIFF = null;
@@ -22,7 +22,7 @@ async function ensureGeoTIFF() {
   // Dynamically load geotiff.js
   termPrint('Loading GeoTIFF library...', 'dim');
 
-  return new Promise((resolve, reject) => {
+  const loadPromise = new Promise((resolve, reject) => {
     const script = document.createElement('script');
     script.src = 'https://cdn.jsdelivr.net/npm/geotiff@2.1.0/dist-browser/geotiff.js';
     script.onload = () => {
@@ -31,10 +31,12 @@ async function ensureGeoTIFF() {
       resolve(GeoTIFF);
     };
     script.onerror = () => {
-      reject(new Error('Failed to load GeoTIFF library'));
+      reject(new Error('Failed to load GeoTIFF library. Check your internet connection.'));
     };
     document.head.appendChild(script);
   });
+
+  return withLoadingWarning(loadPromise, 'GeoTIFF library', 3000);
 }
 
 /**

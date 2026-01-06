@@ -237,7 +237,8 @@ export function loadCSV(text, name, options = {}) {
 
     if (!xCol || !yCol) {
       termPrint(`Could not detect coordinate columns. Headers: ${headers.join(', ')}`, 'red');
-      termPrint('Specify with: load(csv, "name", { x: "col", y: "col" })', 'yellow');
+      termPrint('Auto-detected names: x/y, lon/lat, easting/northing, longitude/latitude', 'yellow');
+      termPrint('Or specify manually: load(csv, "name", { x: "col", y: "col" })', 'yellow');
       return null;
     }
 
