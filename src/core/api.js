@@ -49,6 +49,7 @@ import {
   parseColor, rgbToHex, colorScales, exportCustomRamps, importCustomRamps
 } from './color-ramps.js';
 import { crs, epsg } from './crs.js';
+import { VERSION, BUILD_DATE, getVersionInfo } from './version.js';
 
 // === Layer namespace ===
 // All layers are accessible via ly["name"] or ly.name (if valid identifier)
@@ -292,6 +293,11 @@ function download(layer, filename) {
 // Contains all API functions and will have layers added dynamically
 
 export const sp = {
+  // Version info
+  version: VERSION,
+  buildDate: BUILD_DATE,
+  versionInfo: getVersionInfo,
+
   // Data
   sample,
 
