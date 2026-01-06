@@ -234,6 +234,53 @@ export class BaseLayer {
     return this._blendMode;
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // Serialization - for project persistence and copy/paste
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Serialize layer to plain object for persistence
+   * Subclasses should override and call super.serialize()
+   * @returns {Object} Serialized layer data
+   */
+  serialize() {
+    return {
+      type: this.type,
+      name: this._name,
+      visible: this._visible,
+      zIndex: this._zIndex,
+      opacity: this._olLayer ? this._olLayer.getOpacity() : 1,
+      blendMode: this._blendMode !== 'source-over' ? this._blendMode : undefined,
+      source: this._sourcePath,
+      format: this._sourceFormat,
+      showInLegend: this._showInLegend !== true ? this._showInLegend : undefined
+    };
+  }
+
+  /**
+   * Apply serialized settings to this layer
+   * Used after layer is created to restore state
+   * @param {Object} data - Serialized layer data
+   */
+  applySerializedState(data) {
+    if (data.visible === false) {
+      this.hide();
+    }
+    if (data.zIndex !== undefined) {
+      this.zIndex(data.zIndex);
+    }
+    if (data.opacity !== undefined && data.opacity !== 1) {
+      this.opacity(data.opacity);
+    }
+    if (data.blendMode && data.blendMode !== 'source-over') {
+      this.blendMode(data.blendMode);
+    }
+    if (data.showInLegend === false) {
+      this._showInLegend = false;
+    }
+    return this;
+  }
+
   /**
    * Open layer properties window
    * @param {string} tab - Tab to open: 'info', 'fields', 'style', 'labels'

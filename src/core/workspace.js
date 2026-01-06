@@ -697,45 +697,8 @@ async function save(name) {
 
     if (layer.sourcePath) {
       // Layer has a source file in project - just reference it
-      const config = {
-        name: layer.name,
-        type: layer.width !== undefined ? 'raster' : 'vector',
-        source: layer.sourcePath,
-        format: layer.sourceFormat,
-        visible: layer.visible,
-        zIndex: layer.zIndex ? layer.zIndex() : 0
-      };
-      // Save style if set
-      if (layer._styleOpts) {
-        config.style = layer._styleOpts;
-      }
-      // Save blend mode if not default
-      if (layer._blendMode && layer._blendMode !== 'source-over') {
-        config.blendMode = layer._blendMode;
-      }
-      // Save raster-specific properties
-      if (layer.width !== undefined) {
-        if (layer._metadata) {
-          config.nodata = layer._metadata.nodata;
-          config.min = layer._metadata.min;
-          config.max = layer._metadata.max;
-        }
-        if (layer._colorRamp) {
-          config.colorRamp = layer._colorRamp;
-        }
-        if (layer._mode) {
-          config.mode = layer._mode;
-        }
-        if (layer._selectedBand) {
-          config.selectedBand = layer._selectedBand;
-        }
-        if (layer._bandMapping) {
-          config.bandMapping = layer._bandMapping;
-        }
-        if (layer._bandStretch) {
-          config.bandStretch = layer._bandStretch;
-        }
-      }
+      // Use layer's serialize method for consistent serialization
+      const config = layer.serialize();
       layerConfigs.push(config);
     } else {
       // Layer was created in-memory (e.g., from buffer operation, sample data, etc.)
@@ -748,21 +711,7 @@ async function save(name) {
         try {
           await writeFile(sourcePath, JSON.stringify(layer.geojson, null, 2));
           layer.setSource(sourcePath, 'geojson');
-          const config = {
-            name: layer.name,
-            type: 'vector',
-            source: sourcePath,
-            format: 'geojson',
-            visible: layer.visible,
-            zIndex: layer.zIndex ? layer.zIndex() : 0
-          };
-          if (layer._styleOpts) {
-            config.style = layer._styleOpts;
-          }
-          if (layer._blendMode && layer._blendMode !== 'source-over') {
-            config.blendMode = layer._blendMode;
-          }
-          layerConfigs.push(config);
+          layerConfigs.push(layer.serialize());
           termPrint(`Saved new layer: ${layer.name}`, 'dim');
         } catch (e) {
           termPrint(`Could not save layer: ${layer.name} - ${e.message}`, 'yellow');
@@ -777,37 +726,7 @@ async function save(name) {
           const cogBuffer = await cogBlob.arrayBuffer();
           await writeFile(sourcePath, cogBuffer);
           layer.setSource(sourcePath, 'cog');
-
-          const config = {
-            name: layer.name,
-            type: 'raster',
-            source: sourcePath,
-            format: 'cog',
-            visible: layer.visible,
-            zIndex: layer.zIndex ? layer.zIndex() : 0
-          };
-          // Save raster-specific properties
-          if (layer._metadata) {
-            config.nodata = layer._metadata.nodata;
-            config.min = layer._metadata.min;
-            config.max = layer._metadata.max;
-          }
-          if (layer._colorRamp) {
-            config.colorRamp = layer._colorRamp;
-          }
-          if (layer._mode) {
-            config.mode = layer._mode;
-          }
-          if (layer._selectedBand) {
-            config.selectedBand = layer._selectedBand;
-          }
-          if (layer._bandMapping) {
-            config.bandMapping = layer._bandMapping;
-          }
-          if (layer._bandStretch) {
-            config.bandStretch = layer._bandStretch;
-          }
-          layerConfigs.push(config);
+          layerConfigs.push(layer.serialize());
           termPrint(`Saved raster: ${layer.name}`, 'dim');
         } catch (e) {
           termPrint(`Could not save raster: ${layer.name} - ${e.message}`, 'yellow');

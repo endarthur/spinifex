@@ -119,6 +119,83 @@ export class VectorLayer extends BaseLayer {
   }
 
   // ─────────────────────────────────────────────────────────────
+  // Serialization
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Serialize vector layer to plain object for persistence
+   * @param {Object} options - Serialization options
+   * @param {boolean} options.includeData - Include full GeoJSON (default: false, use source reference)
+   * @returns {Object} Serialized layer data
+   */
+  serialize(options = {}) {
+    const base = super.serialize();
+
+    const data = {
+      ...base,
+      style: this._styleOpts || undefined,
+      labels: this._labelStyle || undefined
+    };
+
+    // Include full GeoJSON data if requested or if no source reference
+    if (options.includeData || !this._sourcePath) {
+      data.geojson = this._geojson;
+    }
+
+    // Clean up undefined values
+    Object.keys(data).forEach(key => {
+      if (data[key] === undefined) delete data[key];
+    });
+
+    return data;
+  }
+
+  /**
+   * Apply serialized settings to this layer
+   * @param {Object} data - Serialized layer data
+   */
+  applySerializedState(data) {
+    super.applySerializedState(data);
+
+    if (data.style) {
+      this.style(data.style);
+    }
+    if (data.labels) {
+      this._labelStyle = data.labels;
+      // Re-apply labels if they were set
+      if (data.labels.field) {
+        import('./styling.js').then(({ applyLabels }) => {
+          applyLabels(this, data.labels);
+        });
+      }
+    }
+
+    return this;
+  }
+
+  /**
+   * Create a VectorLayer from serialized data
+   * Note: Use loadGeoJSON from formats/geojson.js for full layer creation with registration
+   * This static method is for direct deserialization without side effects
+   * @param {Object} data - Serialized layer data (must include geojson)
+   * @returns {Promise<VectorLayer>} New vector layer
+   */
+  static async deserialize(data) {
+    if (!data.geojson) {
+      throw new Error('Cannot deserialize VectorLayer without geojson data');
+    }
+
+    // Use loadGeoJSON for proper layer creation and registration
+    const { loadGeoJSON } = await import('../formats/geojson.js');
+    const layer = loadGeoJSON(data.name, data.geojson);
+
+    // Apply serialized state
+    layer.applySerializedState(data);
+
+    return layer;
+  }
+
+  // ─────────────────────────────────────────────────────────────
   // Selection
   // ─────────────────────────────────────────────────────────────
 

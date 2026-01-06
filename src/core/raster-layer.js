@@ -209,6 +209,75 @@ export class RasterLayer extends BaseLayer {
     return this._blendMode;
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // Serialization
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Serialize raster layer to plain object for persistence
+   * Note: Raster data is referenced via source path, not embedded
+   * @returns {Object} Serialized layer data
+   */
+  serialize() {
+    const base = super.serialize();
+
+    const data = {
+      ...base,
+      // Raster-specific display settings
+      colorRamp: this._colorRamp,
+      mode: this._mode,
+      selectedBand: this._selectedBand !== 1 ? this._selectedBand : undefined,
+      bandMapping: this._bandMapping,
+      bandStretch: Object.keys(this._bandStretch).length > 0 ? this._bandStretch : undefined,
+      // Metadata for stretch/display
+      nodata: this._metadata.nodata,
+      min: this._metadata.min,
+      max: this._metadata.max
+    };
+
+    // Clean up undefined values
+    Object.keys(data).forEach(key => {
+      if (data[key] === undefined) delete data[key];
+    });
+
+    return data;
+  }
+
+  /**
+   * Apply serialized settings to this layer
+   * @param {Object} data - Serialized layer data
+   */
+  applySerializedState(data) {
+    super.applySerializedState(data);
+
+    if (data.colorRamp) {
+      this._colorRamp = data.colorRamp;
+    }
+    if (data.mode) {
+      this._mode = data.mode;
+    }
+    if (data.selectedBand) {
+      this._selectedBand = data.selectedBand;
+    }
+    if (data.bandMapping && Array.isArray(data.bandMapping)) {
+      this._bandMapping = data.bandMapping;
+    }
+    if (data.bandStretch) {
+      this._bandStretch = data.bandStretch;
+    }
+    if (data.min !== undefined) {
+      this._metadata.min = data.min;
+    }
+    if (data.max !== undefined) {
+      this._metadata.max = data.max;
+    }
+
+    // Update the display
+    this._updateStyle();
+
+    return this;
+  }
+
   /**
    * Internal: Update the layer style
    */
